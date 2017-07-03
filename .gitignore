@@ -1,0 +1,5 @@
+*.js
+*.js.map
+mydb/
+node_modules/
+
