@@ -29,4 +29,8 @@ async function setup() {
 // }
 
 
-console.log("EBISU", ebisu.defaultModel(24))
+var o =ebisu.defaultModel(24);
+console.log("EBISU", o)
+console.log("PRED", ebisu.predictRecall(o, 22.5));
+console.log("PRED", ebisu.updateRecall(o, true, 24));
+console.log("PRED", ebisu.updateRecall(o, false, 24));
