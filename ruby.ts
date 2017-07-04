@@ -26,3 +26,7 @@ export function parseFakeRuby(s: string): Furigana[] {
 export function furiganaStringToPlain(arr: Furigana[]): string {
     return arr.map(o => typeof (o) === 'string' ? o : o.ruby).join('');
 }
+
+export function furiganaStringToReading(arr: Furigana[]): string {
+    return arr.map(o => typeof (o) === 'string' ? o : o.rt).join('');
+}

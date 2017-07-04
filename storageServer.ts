@@ -33,7 +33,7 @@ export async function submit(user: string, docId: string, factId: string, ebisuO
     }
 }
 
-export async function omitNonlatestUpdates(user: string, docId: string): Promise<any> {
+export function omitNonlatestUpdates(user: string, docId: string): Promise<any> {
     let p = new Promise((resolve, reject) => {
         let s = new Set<FactUpdate>();
         let previousFactId: string = null;
@@ -61,6 +61,25 @@ export async function omitNonlatestUpdates(user: string, docId: string): Promise
             });
     });
     return p;
+}
+
+export function knownFactIds(user: string, docId: string): Promise<any> {
+    let prefix = `${user}::${docId}::`;
+    return new Promise((resolve, reject) => {
+        let returnSet = new Set<string>();
+        db.createReadStream({ gte: `${user}::${docId}::`, lt: `${user}::${docId};`, reverse: true })
+            .on('data', function(data: KeyVal) {
+                const subkey = data.key.slice(prefix.length);
+                const factId = subkey.slice(0, subkey.indexOf('::'));
+                returnSet.add(factId);
+            })
+            .on('error', function(err) {
+                reject(new Error(err));
+            })
+            .on('end', function() {
+                resolve(returnSet);
+            });
+    });
 }
 
 export function printDb(): void {
