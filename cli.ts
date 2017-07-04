@@ -1,3 +1,4 @@
+import { ebisu } from "./ebisu";
 import { omitNonlatestUpdates, knownFactIds, printDb, submit } from "./storageServer";
 import { urlToFuriganas } from "./md2facts";
 import { furiganaStringToReading, furiganaStringToPlain } from "./ruby";
@@ -11,10 +12,21 @@ async function setup() {
     var knownFacts = await knownFactIds(USER, TOPONYMS_DOCID);
 }
 
-async function suggestNextToLearn() {
-    // Suggest something to learn. User can either learn it or skip it to get another suggestion.
-}
+// async function suggestNextToLearn() {
+//     // Suggest something to learn. User can either learn it or skip it to get another suggestion.
+// }
 
-async function quiz() {
-    // Quiz the user.
-}
+// async function lowestRecallProb() {
+
+// }
+
+// async function quiz() {
+//     // Quiz the user.
+// }
+
+// async function suggestNextToDo() {
+
+// }
+
+
+console.log("EBISU", ebisu.defaultModel(24))

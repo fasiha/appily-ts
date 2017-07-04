@@ -1,11 +1,10 @@
+import { EbisuObject } from "./ebisu";
 import levelup = require("levelup");
 import bluebird = require('bluebird');
 
 var db = levelup('./mydb');
 bluebird.promisifyAll(db);
 // see https://github.com/petkaantonov/bluebird/issues/304#issuecomment-274362312
-
-type EbisuObject = Array<number>;
 
 interface FactUpdate {
     user: string;
