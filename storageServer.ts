@@ -64,6 +64,7 @@ function userDocIdToOpts(user: string, docId?: string) {
     }
     return opts;
 }
+
 export function omitNonlatestUpdates(user: string, docId?: string): Kefir.Stream<FactUpdate, any> {
     let opts: any = userDocIdToOpts(user, docId);
     opts.reverse = true;
@@ -71,6 +72,17 @@ export function omitNonlatestUpdates(user: string, docId?: string): Kefir.Stream
         .skipDuplicates((a: KeyVal, b: KeyVal) => a.key.split('::')[2] === b.key.split('::')[2])
         .map((x: KeyVal) => JSON.parse(x.value) as FactUpdate);
 }
+
+
+export function collectKefirStream<T>(s: Kefir.Stream<T, any>): Promise<T[]> {
+    let ret: T[] = [];
+    return s
+        .scan((prev, next) => (prev as any)
+            .concat(next), ret as any)
+        .last()
+        .toPromise();
+}
+// drainKefirStream(leveldbToKeyStream()).then(x => console.log("X", x));
 
 import { ebisu } from "./ebisu";
 export function mostForgottenFact(user: string, docId?: string): Kefir.Stream<[FactUpdate, number], any> {
@@ -95,7 +107,7 @@ export function mostForgottenFact(user: string, docId?: string): Kefir.Stream<[F
 }
 // var f = mostForgottenFact("ammy"); f.log();
 
-export function knownFactIds(user: string, docId?: string) {
+export function knownFactIds(user: string, docId: string) {
     let prefix = `${user}::${docId}::`;
     let keys = leveldbToKeyStream(userDocIdToOpts(user, docId));
     return keys.map(s => s.split('::')[2]).skipDuplicates();
@@ -104,6 +116,8 @@ export function knownFactIds(user: string, docId?: string) {
 export function printDb(): void {
     leveldbToStream().log("printDb");
 }
+
+
 
 // import express = require('express');
 // import bodyParser = require('body-parser');
