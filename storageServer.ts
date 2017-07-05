@@ -33,6 +33,7 @@ export async function submit(user: string, docId: string, factId: string, ebisuO
 }
 
 import Kefir = require("kefir");
+
 function leveldbToStream(opts?: any): Kefir.Stream<KeyVal, any> {
     var levelStream = db.createReadStream(opts);
     // Can't use `Kefir.fromEvents` because that doesn't understand
@@ -44,8 +45,16 @@ function leveldbToStream(opts?: any): Kefir.Stream<KeyVal, any> {
     });
 }
 
-export function omitNonlatestUpdates(user: string, docId?: string): Kefir.Stream<FactUpdate, any> {
-    let opts: any = { reverse: true };
+function leveldbToKeyStream(opts?:any):Kefir.Stream<string, any> {
+    var levelStream = db.createKeyStream(opts);
+    return Kefir.stream(emitter => {
+        levelStream.on("data", data => emitter.emit(data));
+        levelStream.on("close", () => emitter.end());
+    });
+}
+
+function userDocIdToOpts(user:string, docId?:string){
+    let opts: any = { };
     if (docId) {
         opts.gte = `${user}::${docId}::`;
         opts.lt = `${user}::${docId};`;
@@ -53,17 +62,23 @@ export function omitNonlatestUpdates(user: string, docId?: string): Kefir.Stream
         opts.gte = `${user}::`;
         opts.lt = `${user};`;
     }
+    return opts;
+}
+export function omitNonlatestUpdates(user: string, docId?: string): Kefir.Stream<FactUpdate, any> {
+    let opts :any = userDocIdToOpts(user,docId);
+    opts.reverse = true;
     return leveldbToStream(opts)
         .skipDuplicates((a: KeyVal, b: KeyVal) => a.key.split('::')[2] === b.key.split('::')[2])
         .map((x: KeyVal) => JSON.parse(x.value) as FactUpdate);
 }
 
 import { ebisu } from "./ebisu";
-export function mostForgottenFact(user: string, docId?: string): Kefir.Stream<FactUpdate, any> {
+export function mostForgottenFact(user: string, docId?: string): Kefir.Stream<[FactUpdate, number], any> {
     const dnow = new Date();
     const elapsedHours = (d: Date) => ((dnow as any) - (d as any)) / 3600e3 as number;
     const factUpdateToProb = (f: FactUpdate) => ebisu.predictRecall(f.ebisuObject, elapsedHours(new Date(f.createdAt)));
     let orig = omitNonlatestUpdates(user, docId);
+    // @types/kefir spec for `scan` is too narrow, so I need a lot of `any`s here 😢
     let scanned = orig.scan(([prev, probPrev]: any, next: FactUpdate): any => {
         if (!prev) {
             let prob = factUpdateToProb(next);
@@ -73,27 +88,17 @@ export function mostForgottenFact(user: string, docId?: string): Kefir.Stream<Fa
         if (probNext < probPrev) { return [next, probNext]; }
         return [prev, probPrev];
     }, [null, null] as any);
-    return scanned.last().map(x => x[0] as FactUpdate);
+    return scanned
+        .last()
+        .map(x => [x[0] as FactUpdate, x[1] as number]);
+    // This map is ONLY to make the return type as specified above. `scan`'s annotation should be more flexible.
 }
 // var f = mostForgottenFact("ammy"); f.log();
 
-export function knownFactIds(user: string, docId: string): Promise<any> {
+export function knownFactIds(user: string, docId?: string) {
     let prefix = `${user}::${docId}::`;
-    return new Promise((resolve, reject) => {
-        let returnSet = new Set<string>();
-        db.createReadStream({ gte: `${user}::${docId}::`, lt: `${user}::${docId};`, reverse: true })
-            .on('data', function(data: KeyVal) {
-                const subkey = data.key.slice(prefix.length);
-                const factId = subkey.slice(0, subkey.indexOf('::'));
-                returnSet.add(factId);
-            })
-            .on('error', function(err) {
-                reject(new Error(err));
-            })
-            .on('end', function() {
-                resolve(returnSet);
-            });
-    });
+    let keys = leveldbToKeyStream(userDocIdToOpts(user, docId));
+    return keys.map(s=>s.split('::')[2]).skipDuplicates();
 }
 
 export function printDb(): void {

@@ -11,6 +11,11 @@ export async function urlToFuriganas(url: string): Promise<Array<Furigana[]>> {
     return furiganas;
 }
 
+export function furiganaFactToFactId(word:Furigana[]) {
+    let plain = furiganaStringToPlain(word);
+    return [`${plain}-kanji`, `${plain}-reading`];
+}
+
 // urlToFuriganas("https://raw.githubusercontent.com/fasiha/toponyms-and-nymes/gh-pages/README.md").then(x => {
 //     console.log("Juicy", x);
 //     console.log("SUPER-JUICY!");
