@@ -1,5 +1,5 @@
 import { ebisu } from "./ebisu";
-import { FactUpdate,mostForgottenFact, omitNonlatestUpdates, knownFactIds, printDb, submit } from "./storageServer";
+import { FactUpdate, mostForgottenFact, omitNonlatestUpdates, knownFactIds, printDb, submit } from "./storageServer";
 import { urlToFuriganas, furiganaFactToFactId } from "./md2facts";
 import { furiganaStringToReading, furiganaStringToPlain } from "./ruby";
 
@@ -13,7 +13,7 @@ async function setup() {
     var knownFacts = await knownFactIds(USER, TOPONYMS_DOCID);
 }
 
-async function suggestNextToLearn(fact:FactUpdate) {
+async function suggestNextToLearn(fact: FactUpdate) {
     // Suggest something to learn. User can either learn it or skip it to get another suggestion.
 }
 
@@ -21,11 +21,11 @@ async function suggestNextToLearn(fact:FactUpdate) {
 
 // }
 
-async function administerQuiz(fact:FactUpdate) {
+async function administerQuiz(fact: FactUpdate) {
     // Quiz the user.
 }
 
-function concatMap<T,U>(arr:T[], f :(x:T)=>U[]):U[] {
+function concatMap<T, U>(arr: T[], f: (x: T) => U[]): U[] {
     let ret = [];
     for (let x of arr) {
         ret = ret.concat(f(x));
@@ -33,19 +33,19 @@ function concatMap<T,U>(arr:T[], f :(x:T)=>U[]):U[] {
     return ret;
 }
 
-async function looper(probThreshold:number = 0.5 ) {
+async function looper(probThreshold: number = 0.5) {
     let allFacts = await urlToFuriganas(TOPONYMS_URL);
-    let allFactIds =concatMap(allFacts,furiganaFactToFactId);
+    let allFactIds = concatMap(allFacts, furiganaFactToFactId);
     let knownFacts = await knownFactIds(USER, TOPONYMS_DOCID);
     while (1) {
-        let [fact0, prob0]:[FactUpdate, number] = await mostForgottenFact(USER, DOCID).toPromise();
-            if (prob0<=probThreshold) {
-                // let [ebisuObject, updateObject] = await administerQuiz(fact0);
-                // await submit(USER, DOCID, fact0.factId, ebisuObject, updateObject);
-            } else {
-                // Find first entry in allFacts that isn't known.
-                // knownFactIds(USER, DOCID);
-            }
+        let [fact0, prob0]: [FactUpdate, number] = await mostForgottenFact(USER, DOCID).toPromise();
+        if (prob0 <= probThreshold) {
+            // let [ebisuObject, updateObject] = await administerQuiz(fact0);
+            // await submit(USER, DOCID, fact0.factId, ebisuObject, updateObject);
+        } else {
+            // Find first entry in allFacts that isn't known.
+            // knownFactIds(USER, DOCID);
+        }
     }
 }
 

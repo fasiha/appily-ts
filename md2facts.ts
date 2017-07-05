@@ -11,7 +11,7 @@ export async function urlToFuriganas(url: string): Promise<Array<Furigana[]>> {
     return furiganas;
 }
 
-export function furiganaFactToFactId(word:Furigana[]) {
+export function furiganaFactToFactId(word: Furigana[]) {
     let plain = furiganaStringToPlain(word);
     return [`${plain}-kanji`, `${plain}-reading`];
 }
