@@ -32,35 +32,39 @@ export async function submit(user: string, docId: string, factId: string, ebisuO
     }
 }
 
-export function omitNonlatestUpdates(user: string, docId: string): Promise<any> {
-    let p = new Promise((resolve, reject) => {
-        let s = new Set<FactUpdate>();
-        let previousFactId: string = null;
-        db.createReadStream({ gte: `${user}::${docId}::`, lt: `${user}::${docId};`, reverse: true })
-            .on('data', function(data: KeyVal) {
-                console.log("STREAM", data.key, '=', data.value);
-                const keyPieces: string[] = data.key.split("::");
-                if (previousFactId && previousFactId === keyPieces[2]) {
-                    return;
-                } else {
-                    s.add(JSON.parse(data.value));
-                    previousFactId = keyPieces[2];
-                }
-            })
-            .on('error', function(err) {
-                console.log('Oh my!', err);
-                reject(new Error(err));
-            })
-            .on('close', function() {
-                console.log('Stream closed');
-            })
-            .on('end', function() {
-                console.log('Stream ended. Promise will now be resolved.');
-                resolve(s);
-            });
+import Kefir = require("kefir");
+export function omitNonlatestUpdates(user: string, docId?: string) {
+    let opts: any = { reverse: true };
+    if (docId) {
+        opts.gte = `${user}::${docId}::`;
+        opts.lt = `${user}::${docId};`;
+    } else {
+        opts.gte = `${user}::`;
+        opts.lt = `${user};`;
+    }
+    var levelStream = db.createReadStream(opts);
+    var kefirStream = Kefir.stream(emitter => {
+        levelStream.on("data", data => emitter.emit(data));
+        levelStream.on("close", () => emitter.end());
     });
-    return p;
+    return kefirStream
+        .skipDuplicates((a: KeyVal, b: KeyVal) => a.key.split('::')[2] === b.key.split('::')[2])
+        .map((x: KeyVal) => JSON.parse(x.value) as FactUpdate);
 }
+
+import { ebisu } from "./ebisu";
+export function mostForgottenFact(user: string, docId?: string) {
+    var dnow = new Date();
+    var elapsedHours = (d: Date) => ((dnow as any) - (d as any)) / 3600e3 as number;
+    var orig = omitNonlatestUpdates(user, docId);
+    var formatted = orig.diff((prev, next): any => {
+        var pnext = ebisu.predictRecall(next.ebisuObject, elapsedHours(new Date(next.createdAt)));
+        var pprev = ebisu.predictRecall(prev.ebisuObject, elapsedHours(new Date(prev.createdAt)));
+        return pnext < pprev ? next : prev;
+    });
+    return formatted.last();
+}
+// var f = mostForgottenFact("ammy");
 
 export function knownFactIds(user: string, docId: string): Promise<any> {
     let prefix = `${user}::${docId}::`;

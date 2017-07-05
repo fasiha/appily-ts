@@ -29,7 +29,8 @@ async function setup() {
 // }
 
 
-var o =ebisu.defaultModel(24);
+// Initial halflife: 15 minutes: all elapsed times will be in units of hours.
+var o = ebisu.defaultModel(0.25, 2.5);
 console.log("EBISU", o)
 console.log("PRED", ebisu.predictRecall(o, 22.5));
 console.log("PRED", ebisu.updateRecall(o, true, 24));
