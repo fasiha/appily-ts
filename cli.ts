@@ -14,7 +14,7 @@ async function setup() {
     var knownFacts = await knownFactIds(USER, TOPONYMS_DOCID);
 }
 
-async function learnFact(fact: Furigana[], factId:string) {
+async function learnFact(fact: Furigana[], factId: string) {
     // Suggest something to learn. User can either learn it or skip it to get another suggestion.
     console.log("Hey! Learn this:", fact, factId);
 }
@@ -39,12 +39,12 @@ async function looper(probThreshold: number = 0.5) {
             // await submit(USER, DOCID, fact0.factId, ebisuObject, updateObject);
         } else {
             // Find first entry in `allFacts` that isn't known.
-            let toLearnFact:Furigana[];
-            let toLearnFactId:string;
+            let toLearnFact: Furigana[];
+            let toLearnFactId: string;
             for (let fact of allFacts) {
                 let ids = furiganaFactToFactIds(fact);
-                let unknownId=ids.findIndex(id=>!knownSet.has(id));
-                if (unknownId>=0) {
+                let unknownId = ids.findIndex(id => !knownSet.has(id));
+                if (unknownId >= 0) {
                     toLearnFact = fact;
                     toLearnFactId = ids[unknownId];
                     break;
@@ -53,7 +53,7 @@ async function looper(probThreshold: number = 0.5) {
             if (toLearnFact) {
                 learnFact(toLearnFact, toLearnFactId);
             } else {
-                console.log(`No facts left to learn or review (π=${fact0?prob0:'none'}). Go outside and play!`)
+                console.log(`No facts left to learn or review (π=${fact0 ? prob0 : 'none'}). Go outside and play!`)
                 break;
             }
         }
