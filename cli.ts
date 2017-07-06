@@ -88,7 +88,6 @@ async function administerQuiz(fact: Furigana[], factId: string, update: FactUpda
 
 async function loop(probThreshold: number = 0.5) {
     const allFacts = await urlToFuriganas(TOPONYMS_URL);
-    // let allFactIds = concatMap(allFacts, furiganaFactToFactIds);
     const knownFactIds = await collectKefirStream(getKnownFactIds(USER, TOPONYMS_DOCID));
     let knownIdsSet = new Set(knownFactIds);
     let [update0, prob0]: [FactUpdate, number] = await getMostForgottenFact(USER, DOCID).toPromise();
@@ -96,7 +95,6 @@ async function loop(probThreshold: number = 0.5) {
         console.log("Review!", prob0, update0);
         var plain0 = update0.factId.split('-')[0];
         let fact = allFacts.find(fact => furiganaStringToPlain(fact) === plain0);
-        // let relatedIds = furiganaFactToFactIds(fact);
         await administerQuiz(fact, update0.factId, update0, allFacts);
     } else {
         // Find first entry in `allFacts` that isn't known.
@@ -117,16 +115,7 @@ async function loop(probThreshold: number = 0.5) {
         }
     }
 }
-loop()
-
+loop();
 
 // Initial halflife: 15 minutes: all elapsed times will be in units of hours.
 var newlyLearned = ebisu.defaultModel(0.25, 2.5);
-
-// function concatMap<T, U>(arr: T[], f: (x: T) => U[]): U[] {
-//     let ret = [];
-//     for (let x of arr) {
-//         ret = ret.concat(f(x));
-//     }
-//     return ret;
-// }
