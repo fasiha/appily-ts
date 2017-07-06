@@ -45,6 +45,7 @@ const elapsedHours = (d: Date, dnow?: Date) => (((dnow || new Date()) as any) - 
 
 async function administerQuiz(fact: Furigana[], factId: string, update: FactUpdate, allFacts: Array<Furigana[]>) {
     console.log(`¡¡¡🎆 QUIZ TIME 🎇!!!`);
+    let info;
     let result;
     if (factId.indexOf('-kanji') >= 0) {
         const alpha = 'ABCDEFGHIJKLM'.split('');
@@ -58,29 +59,28 @@ async function administerQuiz(fact: Furigana[], factId: string, update: FactUpda
             return;
         }
         result = furiganaStringToPlain(confusers[responseIdx]) === furiganaStringToPlain(fact);
-        let info = {
+        info = {
             result,
             response: furiganaStringToPlain(confusers[responseIdx]),
             confusers: confusers.map(furiganaStringToPlain)
         };
-        console.log("INFO", info);
-        for (let id of furiganaFactToFactIds(fact)) {
-            if (id === factId) {
-                // active update
-                let newEbisu = ebisu.updateRecall(update.ebisuObject, result, elapsedHours(new Date(update.createdAt)));
-                submit(USER, DOCID, factId, newEbisu, info);
-            } else {
-                // passive update: update the timestamp, keep the ebisu prior the same.
-                submit(USER, DOCID, id, update.ebisuObject, info);
-            }
-        }
+
     } else {
         console.log(`What’s the reading for: ${furiganaStringToPlain(fact)}`);
         let responseText = await prompt();
         result = responseText === furiganaStringToReading(fact);
-        let info = { result, response: responseText };
-        console.log("INFO", info);
-
+        info = { result, response: responseText };
+    }
+    // console.log("INFO", info);
+    for (let id of furiganaFactToFactIds(fact)) {
+        if (id === factId) {
+            // active update
+            let newEbisu = ebisu.updateRecall(update.ebisuObject, result, elapsedHours(new Date(update.createdAt)));
+            submit(USER, DOCID, factId, newEbisu, info);
+        } else {
+            // passive update: update the timestamp, keep the ebisu prior the same.
+            submit(USER, DOCID, id, update.ebisuObject, info);
+        }
     }
     if (result) { console.log('✅✅✅!'); }
     else { console.log('❌❌❌'); }
