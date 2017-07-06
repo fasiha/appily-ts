@@ -85,7 +85,7 @@ export function collectKefirStream<T>(s: Kefir.Stream<T, any>): Promise<T[]> {
 // drainKefirStream(leveldbToKeyStream()).then(x => console.log("X", x));
 
 import { ebisu } from "./ebisu";
-export function mostForgottenFact(user: string, docId?: string): Kefir.Stream<[FactUpdate, number], any> {
+export function getMostForgottenFact(user: string, docId?: string): Kefir.Stream<[FactUpdate, number], any> {
     const dnow = new Date();
     const elapsedHours = (d: Date) => ((dnow as any) - (d as any)) / 3600e3 as number;
     const factUpdateToProb = (f: FactUpdate) => ebisu.predictRecall(f.ebisuObject, elapsedHours(new Date(f.createdAt)));
@@ -107,7 +107,7 @@ export function mostForgottenFact(user: string, docId?: string): Kefir.Stream<[F
 }
 // var f = mostForgottenFact("ammy"); f.log();
 
-export function knownFactIds(user: string, docId: string) {
+export function getKnownFactIds(user: string, docId: string) {
     let prefix = `${user}::${docId}::`;
     let keys = leveldbToKeyStream(userDocIdToOpts(user, docId));
     return keys.map(s => s.split('::')[2]).skipDuplicates();
@@ -116,7 +116,7 @@ export function knownFactIds(user: string, docId: string) {
 export function printDb(): void {
     leveldbToStream().log("printDb");
 }
-// printDb()
+printDb()
 
 
 // import express = require('express');

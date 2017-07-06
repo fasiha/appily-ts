@@ -1,6 +1,6 @@
 import { ebisu } from "./ebisu";
 import { Furigana, Ruby } from "./ruby";
-import { FactUpdate, collectKefirStream, mostForgottenFact, omitNonlatestUpdates, knownFactIds, printDb, submit } from "./storageServer";
+import { FactUpdate, collectKefirStream, getMostForgottenFact, omitNonlatestUpdates, getKnownFactIds, printDb, submit } from "./storageServer";
 import { urlToFuriganas, furiganaFactToFactIds } from "./md2facts";
 import { furiganaStringToReading, furiganaStringToPlain } from "./ruby";
 
@@ -9,11 +9,6 @@ let WEB_URL = "https://fasiha.github.io/toponyms-and-nymes/";
 let TOPONYMS_DOCID = "toponyms";
 let USER = "ammy";
 let DOCID = TOPONYMS_DOCID;
-
-async function setup() {
-    var allFacts = await urlToFuriganas(TOPONYMS_URL);
-    var knownFacts = await knownFactIds(USER, TOPONYMS_DOCID);
-}
 
 function factIdToURL(s: string) {
     return `${WEB_URL}#${encodeURI(s.split('-')[0])}`;
@@ -33,7 +28,6 @@ function prompt(): Promise<string> {
 }
 
 async function learnFact(fact: Furigana[], factIds: string[]) {
-    // Suggest something to learn. User can either learn it or skip it to get another suggestion.
     console.log(`Hey! Learn this:`, fact);
     console.log(factIdToURL(factIds[0]));
     fact.filter((f: Furigana) => typeof (f) !== 'string')
@@ -44,41 +38,82 @@ async function learnFact(fact: Furigana[], factIds: string[]) {
     factIds.forEach(factId => submit(USER, DOCID, factId, newlyLearned));
 }
 
-// async function lowestRecallProb() {
+// const shuffle = require("lodash.shuffle");
+import { shuffle, sampleSize } from "lodash";
 
-// }
+const elapsedHours = (d: Date, dnow?: Date) => (((dnow || new Date()) as any) - (d as any)) / 3600e3 as number;
 
-async function administerQuiz(fact: FactUpdate) {
-    // Quiz the user.
+async function administerQuiz(fact: Furigana[], factId: string, update: FactUpdate, allFacts: Array<Furigana[]>) {
+    console.log(`¡¡¡🎆 QUIZ TIME 🎇!!!`);
+    let result;
+    if (factId.indexOf('-kanji') >= 0) {
+        const alpha = 'ABCDEFGHIJKLM'.split('');
+        let confusers = shuffle(sampleSize(allFacts, 4).concat([fact]));
+        console.log(`What’s the kanji for: ${furiganaStringToReading(fact)}?`);
+        confusers.forEach((fact, idx: number) => console.log(`${alpha[idx]}. ${furiganaStringToPlain(fact)}`));
+        let responseText = await prompt();
+        let responseIdx = alpha.indexOf(responseText.toUpperCase());
+        if (responseIdx < 0 || responseIdx >= confusers.length) {
+            console.log('Ummm… you ok?');
+            return;
+        }
+        result = furiganaStringToPlain(confusers[responseIdx]) === furiganaStringToPlain(fact);
+        let info = {
+            result,
+            response: furiganaStringToPlain(confusers[responseIdx]),
+            confusers: confusers.map(furiganaStringToPlain)
+        };
+        console.log("INFO", info);
+        for (let id of furiganaFactToFactIds(fact)) {
+            if (id === factId) {
+                // active update
+                let newEbisu = ebisu.updateRecall(update.ebisuObject, result, elapsedHours(new Date(update.createdAt)));
+                submit(USER, DOCID, factId, newEbisu, info);
+            } else {
+                // passive update: update the timestamp, keep the ebisu prior the same.
+                submit(USER, DOCID, id, update.ebisuObject, info);
+            }
+        }
+    } else {
+        console.log(`What’s the reading for: ${furiganaStringToPlain(fact)}`);
+        let responseText = await prompt();
+        result = responseText === furiganaStringToReading(fact);
+        let info = { result, response: responseText };
+        console.log("INFO", info);
+
+    }
+    if (result) { console.log('✅✅✅!'); }
+    else { console.log('❌❌❌'); }
 }
 
 async function loop(probThreshold: number = 0.5) {
     const allFacts = await urlToFuriganas(TOPONYMS_URL);
     // let allFactIds = concatMap(allFacts, furiganaFactToFactIds);
-    const knownFacts = await collectKefirStream(knownFactIds(USER, TOPONYMS_DOCID));
-    let knownSet = new Set(knownFacts);
-    let [fact0, prob0]: [FactUpdate, number] = await mostForgottenFact(USER, DOCID).toPromise();
+    const knownFactIds = await collectKefirStream(getKnownFactIds(USER, TOPONYMS_DOCID));
+    let knownIdsSet = new Set(knownFactIds);
+    let [update0, prob0]: [FactUpdate, number] = await getMostForgottenFact(USER, DOCID).toPromise();
     if (prob0 && prob0 <= probThreshold) {
-        // let [ebisuObject, updateObject] = await administerQuiz(fact0);
-        // await submit(USER, DOCID, fact0.factId, ebisuObject, updateObject);
-        console.log("Review!")
+        console.log("Review!", prob0, update0);
+        var plain0 = update0.factId.split('-')[0];
+        let fact = allFacts.find(fact => furiganaStringToPlain(fact) === plain0);
+        // let relatedIds = furiganaFactToFactIds(fact);
+        await administerQuiz(fact, update0.factId, update0, allFacts);
     } else {
         // Find first entry in `allFacts` that isn't known.
         let toLearnFact: Furigana[];
-        let toLearnFactId: string;
+        allFacts.find
         for (let fact of allFacts) {
             let ids = furiganaFactToFactIds(fact);
-            let unknownId = ids.findIndex(id => !knownSet.has(id));
+            let unknownId = ids.findIndex(id => !knownIdsSet.has(id));
             if (unknownId >= 0) {
                 toLearnFact = fact;
-                toLearnFactId = ids[unknownId];
                 break;
             }
         }
         if (toLearnFact) {
             await learnFact(toLearnFact, furiganaFactToFactIds(toLearnFact));
         } else {
-            console.log(`No facts left to learn or review (π=${fact0 ? prob0 : 'none'}). Go outside and play!`)
+            console.log(`No facts left to learn or review (π=${update0 ? prob0 : 'none'}). Go outside and play!`)
         }
     }
 }
