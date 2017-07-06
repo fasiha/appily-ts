@@ -116,7 +116,7 @@ export function knownFactIds(user: string, docId: string) {
 export function printDb(): void {
     leveldbToStream().log("printDb");
 }
-
+// printDb()
 
 
 // import express = require('express');
