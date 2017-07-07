@@ -1,8 +1,13 @@
 import { ebisu } from "./ebisu";
 import { Furigana, Ruby } from "./ruby";
-import { FactUpdate, collectKefirStream, getMostForgottenFact, omitNonlatestUpdates, getKnownFactIds, printDb, submit } from "./storageServer";
+import {
+    FactUpdate, collectKefirStream, getMostForgottenFact, omitNonlatestUpdates, getKnownFactIds,
+    printDb, submit
+} from "./storageServer";
 import { urlToFuriganas, furiganaFactToFactIds } from "./md2facts";
 import { furiganaStringToReading, furiganaStringToPlain } from "./ruby";
+
+import { shuffle, sampleSize } from "lodash";
 
 let TOPONYMS_URL = "https://raw.githubusercontent.com/fasiha/toponyms-and-nymes/gh-pages/README.md";
 let WEB_URL = "https://fasiha.github.io/toponyms-and-nymes/";
@@ -30,16 +35,14 @@ function prompt(): Promise<string> {
 async function learnFact(fact: Furigana[], factIds: string[]) {
     console.log(`Hey! Learn this:`, fact);
     console.log(factIdToURL(factIds[0]));
+    var start = new Date();
     fact.filter((f: Furigana) => typeof (f) !== 'string')
         .forEach((f: Ruby) => console.log(`${f.ruby}: http://jisho.org/search/${encodeURI(f.ruby)}%20%23kanji`));
     console.log('')
     console.log('Type something if you got it.');
     var typed = await prompt();
-    factIds.forEach(factId => submit(USER, DOCID, factId, newlyLearned));
+    factIds.forEach(factId => submit(USER, DOCID, factId, newlyLearned, { hoursWaited: elapsedHours(start) }));
 }
-
-// const shuffle = require("lodash.shuffle");
-import { shuffle, sampleSize } from "lodash";
 
 const elapsedHours = (d: Date, dnow?: Date) => (((dnow || new Date()) as any) - (d as any)) / 3600e3 as number;
 
@@ -47,6 +50,7 @@ async function administerQuiz(fact: Furigana[], factId: string, update: FactUpda
     console.log(`¡¡¡🎆 QUIZ TIME 🎇!!!`);
     let info;
     let result;
+    let start = new Date();
     if (factId.indexOf('-kanji') >= 0) {
         const alpha = 'ABCDEFGHIJKLM'.split('');
         let confusers = shuffle(sampleSize(allFacts, 4).concat([fact]));
@@ -72,13 +76,16 @@ async function administerQuiz(fact: Furigana[], factId: string, update: FactUpda
         info = { result, response: responseText };
     }
     // console.log("INFO", info);
+    info.hoursWaited = elapsedHours(start);
     for (let id of furiganaFactToFactIds(fact)) {
         if (id === factId) {
             // active update
+            info.wasActiveRecall = true;
             let newEbisu = ebisu.updateRecall(update.ebisuObject, result, elapsedHours(new Date(update.createdAt)));
             submit(USER, DOCID, factId, newEbisu, info);
         } else {
             // passive update: update the timestamp, keep the ebisu prior the same.
+            info.wasActiveRecall = false;
             submit(USER, DOCID, id, update.ebisuObject, info);
         }
     }
@@ -92,7 +99,7 @@ async function loop(probThreshold: number = 0.5) {
     let knownIdsSet = new Set(knownFactIds);
     let [update0, prob0]: [FactUpdate, number] = await getMostForgottenFact(USER, DOCID).toPromise();
     if (prob0 && prob0 <= probThreshold) {
-        console.log("Review!", prob0, update0);
+        console.log("Review!", prob0);
         var plain0 = update0.factId.split('-')[0];
         let fact = allFacts.find(fact => furiganaStringToPlain(fact) === plain0);
         await administerQuiz(fact, update0.factId, update0, allFacts);

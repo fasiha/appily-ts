@@ -114,7 +114,12 @@ export function getKnownFactIds(user: string, docId: string) {
 }
 
 export function printDb(): void {
-    leveldbToStream().log("printDb");
+    // leveldbToStream().log("printDb");
+    leveldbToStream().observe({
+        value(value) {
+            console.log('printDb:' + JSON.stringify(value));
+        },
+    });
 }
 // printDb()
 
