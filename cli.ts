@@ -41,13 +41,13 @@ async function learnFact(fact: Furigana[], factIds: string[]) {
     console.log('')
     console.log('Type something if you got it.');
     var typed = await prompt();
-    factIds.forEach(factId => submit(USER, DOCID, factId, newlyLearned, { firstLearned:true, hoursWaited: elapsedHours(start) }));
+    factIds.forEach(factId => submit(USER, DOCID, factId, newlyLearned, { firstLearned: true, hoursWaited: elapsedHours(start) }));
 }
 
 const elapsedHours = (d: Date, dnow?: Date) => (((dnow || new Date()) as any) - (d as any)) / 3600e3 as number;
 
-async function administerQuiz(fact: Furigana[], factId: string, allUpdates:FactUpdate[],
-     allFacts: Array<Furigana[]>) {
+async function administerQuiz(fact: Furigana[], factId: string, allUpdates: FactUpdate[],
+    allFacts: Array<Furigana[]>) {
     console.log(`¡¡¡🎆 QUIZ TIME 🎇!!!`);
     let info;
     let result;
@@ -98,17 +98,17 @@ async function loop(probThreshold: number = 0.5) {
     let levelOpts = makeLeveldbOpts(USER, DOCID);
 
     const allFacts = await urlToFuriganas(TOPONYMS_URL);
-    
+
     const knownFactIds = await collectKefirStream(getKnownFactIds(levelOpts));
     let knownIdsSet = new Set(knownFactIds);
-    
+
     let [update0, prob0]: [FactUpdate, number] = await getMostForgottenFact(levelOpts).toPromise();
     if (prob0 && prob0 <= probThreshold) {
         var plain0 = update0.factId.split('-')[0];
         let fact0 = allFacts.find(fact => furiganaStringToPlain(fact) === plain0);
         // FIXME what happens if this isn’t found? I.e., a fact that was learned and then removed from the syllabus?
         var allRelatedUpdates = await collectKefirStream(omitNonlatestUpdates(makeLeveldbOpts(USER, DOCID, plain0, true)));
-        
+
         console.log("Review!", prob0);
         await administerQuiz(fact0, update0.factId, allRelatedUpdates, allFacts);
     } else {

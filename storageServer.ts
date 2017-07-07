@@ -53,37 +53,37 @@ function leveldbToKeyStream(opts?: any): Kefir.Stream<string, any> {
     });
 }
 
-export function makeLeveldbOpts(user: string, docId: string = '', factId:string='', factIdFragment:boolean=true) {
-    let ret = (a:string,b:string)=>({gte:a, lt:b});
-    let a:string = `${user}`;
-    let b:string = `${user}`;
+export function makeLeveldbOpts(user: string, docId: string = '', factId: string = '', factIdFragment: boolean = true) {
+    let ret = (a: string, b: string) => ({ gte: a, lt: b });
+    let a: string = `${user}`;
+    let b: string = `${user}`;
     if (docId.length) {
         a += `::${docId}`;
         b += `::${docId}`;
     } else {
         a += '::';
         b += ';';
-        return ret(a,b);
+        return ret(a, b);
     }
 
     if (factId.length) {
-        a+=`::${factId}`;
-        b+=`::${factId}`;
+        a += `::${factId}`;
+        b += `::${factId}`;
         if (factIdFragment) {
-            b+='\uffff';
+            b += '\uffff';
         } else {
             a += '::';
-            b+= ';';
+            b += ';';
         }
-        return ret(a,b);
+        return ret(a, b);
     } else {
-        a+='::';
-        b+=';';
+        a += '::';
+        b += ';';
     }
-    return ret(a,b);
+    return ret(a, b);
 }
 
-export function omitNonlatestUpdates(opts:any = {}): Kefir.Stream<FactUpdate, any> {
+export function omitNonlatestUpdates(opts: any = {}): Kefir.Stream<FactUpdate, any> {
     opts.reverse = true;
     return leveldbToStream(opts)
         .skipDuplicates((a: KeyVal, b: KeyVal) => a.key.split('::')[2] === b.key.split('::')[2])
@@ -94,15 +94,14 @@ export function omitNonlatestUpdates(opts:any = {}): Kefir.Stream<FactUpdate, an
 export function collectKefirStream<T>(s: Kefir.Stream<T, any>): Promise<T[]> {
     let ret: T[] = [];
     return s
-        .scan((prev, next) => (prev as any)
-            .concat(next), ret as any)
+        .scan((prev, next) => (prev as any).concat(next), ret as any)
         .last()
         .toPromise();
 }
 // drainKefirStream(leveldbToKeyStream()).then(x => console.log("X", x));
 
 import { ebisu } from "./ebisu";
-export function getMostForgottenFact(opts:any = {}): Kefir.Stream<[FactUpdate, number], any> {
+export function getMostForgottenFact(opts: any = {}): Kefir.Stream<[FactUpdate, number], any> {
     const dnow = new Date();
     const elapsedHours = (d: Date) => ((dnow as any) - (d as any)) / 3600e3 as number;
     const factUpdateToProb = (f: FactUpdate) => ebisu.predictRecall(f.ebisuObject, elapsedHours(new Date(f.createdAt)));
@@ -124,7 +123,7 @@ export function getMostForgottenFact(opts:any = {}): Kefir.Stream<[FactUpdate, n
 }
 // var f = mostForgottenFact("ammy"); f.log();
 
-export function getKnownFactIds(opts:any={}) {
+export function getKnownFactIds(opts: any = {}) {
     let keys = leveldbToKeyStream(opts);
     return keys.map(s => s.split('::')[2]).skipDuplicates();
 }
