@@ -2,7 +2,7 @@ import { ebisu } from "./ebisu";
 import { Furigana, Ruby } from "./ruby";
 import {
     FactUpdate, collectKefirStream, getMostForgottenFact, omitNonlatestUpdates, getKnownFactIds,
-    printDb, submit
+    makeLeveldbOpts, printDb, submit
 } from "./storageServer";
 import { urlToFuriganas, furiganaFactToFactIds } from "./md2facts";
 import { furiganaStringToReading, furiganaStringToPlain } from "./ruby";
@@ -46,7 +46,8 @@ async function learnFact(fact: Furigana[], factIds: string[]) {
 
 const elapsedHours = (d: Date, dnow?: Date) => (((dnow || new Date()) as any) - (d as any)) / 3600e3 as number;
 
-async function administerQuiz(fact: Furigana[], factId: string, update: FactUpdate, allFacts: Array<Furigana[]>) {
+async function administerQuiz(fact: Furigana[], factId: string, allUpdates:FactUpdate[],
+     allFacts: Array<Furigana[]>) {
     console.log(`¡¡¡🎆 QUIZ TIME 🎇!!!`);
     let info;
     let result;
@@ -77,16 +78,16 @@ async function administerQuiz(fact: Furigana[], factId: string, update: FactUpda
     }
     // console.log("INFO", info);
     info.hoursWaited = elapsedHours(start);
-    for (let id of furiganaFactToFactIds(fact)) {
-        if (id === factId) {
+    for (let u of allUpdates) {
+        if (u.factId === factId) {
             // active update
             info.wasActiveRecall = true;
-            let newEbisu = ebisu.updateRecall(update.ebisuObject, result, elapsedHours(new Date(update.createdAt)));
+            let newEbisu = ebisu.updateRecall(u.ebisuObject, result, elapsedHours(new Date(u.createdAt)));
             submit(USER, DOCID, factId, newEbisu, info);
         } else {
             // passive update: update the timestamp, keep the ebisu prior the same.
             info.wasActiveRecall = false;
-            submit(USER, DOCID, id, update.ebisuObject, info);
+            submit(USER, DOCID, u.factId, u.ebisuObject, info);
         }
     }
     if (result) { console.log('✅✅✅!'); }
@@ -94,15 +95,22 @@ async function administerQuiz(fact: Furigana[], factId: string, update: FactUpda
 }
 
 async function loop(probThreshold: number = 0.5) {
+    let levelOpts = makeLeveldbOpts(USER, DOCID);
+
     const allFacts = await urlToFuriganas(TOPONYMS_URL);
-    const knownFactIds = await collectKefirStream(getKnownFactIds(USER, TOPONYMS_DOCID));
+    
+    const knownFactIds = await collectKefirStream(getKnownFactIds(levelOpts));
     let knownIdsSet = new Set(knownFactIds);
-    let [update0, prob0]: [FactUpdate, number] = await getMostForgottenFact(USER, DOCID).toPromise();
+    
+    let [update0, prob0]: [FactUpdate, number] = await getMostForgottenFact(levelOpts).toPromise();
     if (prob0 && prob0 <= probThreshold) {
-        console.log("Review!", prob0);
         var plain0 = update0.factId.split('-')[0];
-        let fact = allFacts.find(fact => furiganaStringToPlain(fact) === plain0);
-        await administerQuiz(fact, update0.factId, update0, allFacts);
+        let fact0 = allFacts.find(fact => furiganaStringToPlain(fact) === plain0);
+        // FIXME what happens if this isn’t found? I.e., a fact that was learned and then removed from the syllabus?
+        var allRelatedUpdates = await collectKefirStream(omitNonlatestUpdates(makeLeveldbOpts(USER, DOCID, plain0, true)));
+        
+        console.log("Review!", prob0);
+        await administerQuiz(fact0, update0.factId, allRelatedUpdates, allFacts);
     } else {
         // Find first entry in `allFacts` that isn't known.
         let toLearnFact: Furigana[];
