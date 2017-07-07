@@ -41,7 +41,7 @@ async function learnFact(fact: Furigana[], factIds: string[]) {
     console.log('')
     console.log('Type something if you got it.');
     var typed = await prompt();
-    factIds.forEach(factId => submit(USER, DOCID, factId, newlyLearned, { hoursWaited: elapsedHours(start) }));
+    factIds.forEach(factId => submit(USER, DOCID, factId, newlyLearned, { firstLearned:true, hoursWaited: elapsedHours(start) }));
 }
 
 const elapsedHours = (d: Date, dnow?: Date) => (((dnow || new Date()) as any) - (d as any)) / 3600e3 as number;
