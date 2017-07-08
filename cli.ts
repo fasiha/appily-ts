@@ -15,6 +15,20 @@ let TOPONYMS_DOCID = "toponyms";
 let USER = "ammy";
 let DOCID = TOPONYMS_DOCID;
 
+// Initial halflife: 15 minutes: all elapsed times will be in units of hours.
+const newlyLearned = ebisu.defaultModel(0.25, 2.5);
+const buryForever = ebisu.defaultModel(Infinity);
+
+function any(arr: boolean[]) { return arr.reduce((prev, curr) => prev || curr, false); }
+function all(arr: boolean[]) { return arr.reduce((prev, curr) => prev && curr, true); }
+function concatMap<T, U>(arr: T[], f: (x: T) => U[]): U[] {
+    let ret = [];
+    for (let x of arr) {
+        ret = ret.concat(f(x));
+    }
+    return ret;
+}
+
 function factIdToURL(s: string) {
     return `${WEB_URL}#${encodeURI(s.split('-')[0])}`;
 }
@@ -119,15 +133,15 @@ async function administerQuiz(fact: Furigana[], factId: string, allUpdates: Fact
             // active update
             info.wasActiveRecall = true;
             let newEbisu = ebisu.updateRecall(u.ebisuObject, result, elapsedHours(new Date(u.createdAt)));
-            submit(USER, DOCID, factId, newEbisu, info);
+            await submit(USER, DOCID, factId, newEbisu, info);
         } else {
             // passive update: update the timestamp, keep the ebisu prior the same.
             info.wasActiveRecall = false;
-            submit(USER, DOCID, u.factId, u.ebisuObject, info);
+            await submit(USER, DOCID, u.factId, u.ebisuObject, info);
         }
     }
     if (result) { console.log('✅✅✅!'); }
-    else { console.log('❌❌❌'); }
+    else { console.log('❌❌❌', fact); }
 }
 
 async function loop(probThreshold: number = 0.5) {
@@ -159,18 +173,3 @@ async function loop(probThreshold: number = 0.5) {
     }
 }
 loop();
-
-function any(arr: boolean[]) { return arr.reduce((prev, curr) => prev || curr, false); }
-function all(arr: boolean[]) { return arr.reduce((prev, curr) => prev && curr, true); }
-
-function concatMap<T, U>(arr: T[], f: (x: T) => U[]): U[] {
-    let ret = [];
-    for (let x of arr) {
-        ret = ret.concat(f(x));
-    }
-    return ret;
-}
-
-// Initial halflife: 15 minutes: all elapsed times will be in units of hours.
-var newlyLearned = ebisu.defaultModel(0.25, 2.5);
-var buryForever = ebisu.defaultModel(Infinity);
