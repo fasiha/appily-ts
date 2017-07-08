@@ -131,12 +131,13 @@ async function administerQuiz(fact: Furigana[], factId: string, allUpdates: Fact
 }
 
 async function loop(probThreshold: number = 0.5) {
-    let levelOpts = makeLeveldbOpts(USER, DOCID);
+    const levelOpts = makeLeveldbOpts(USER, DOCID);
 
     const allFacts = await urlToFuriganas(TOPONYMS_URL);
+    const availableFactIds = new Set(concatMap(allFacts, furiganaFactToFactIds));
 
-    const knownFactIds = await collectKefirStream(getKnownFactIds(levelOpts));
-    let knownIdsSet = new Set(knownFactIds);
+    const knownFactIds = (await collectKefirStream(getKnownFactIds(levelOpts))).filter(s => availableFactIds.has(s));
+    const knownIdsSet = new Set(knownFactIds);
 
     let [update0, prob0]: [FactUpdate, number] = await getMostForgottenFact(levelOpts).toPromise();
     if (prob0 && prob0 <= probThreshold) {
@@ -149,16 +150,7 @@ async function loop(probThreshold: number = 0.5) {
         await administerQuiz(fact0, update0.factId, allRelatedUpdates, allFacts);
     } else {
         // Find first entry in `allFacts` that isn't known.
-        let toLearnFact: Furigana[];
-        allFacts.find
-        for (let fact of allFacts) {
-            let ids = furiganaFactToFactIds(fact);
-            let unknownId = ids.findIndex(id => !knownIdsSet.has(id));
-            if (unknownId >= 0) {
-                toLearnFact = fact;
-                break;
-            }
-        }
+        let toLearnFact: Furigana[] = allFacts.find(fact => !all(furiganaFactToFactIds(fact).map(s => knownIdsSet.has(s))));
         if (toLearnFact) {
             await learnFact(toLearnFact, furiganaFactToFactIds(toLearnFact));
         } else {
@@ -167,6 +159,17 @@ async function loop(probThreshold: number = 0.5) {
     }
 }
 loop();
+
+function any(arr: boolean[]) { return arr.reduce((prev, curr) => prev || curr, false); }
+function all(arr: boolean[]) { return arr.reduce((prev, curr) => prev && curr, true); }
+
+function concatMap<T, U>(arr: T[], f: (x: T) => U[]): U[] {
+    let ret = [];
+    for (let x of arr) {
+        ret = ret.concat(f(x));
+    }
+    return ret;
+}
 
 // Initial halflife: 15 minutes: all elapsed times will be in units of hours.
 var newlyLearned = ebisu.defaultModel(0.25, 2.5);
