@@ -58,10 +58,11 @@ async function learnFact(fact: Furigana[], factIds: string[]) {
     console.log(`Hey! Learn this:`, fact);
     console.log(factIdToURL(factIds[0]));
     var start = new Date();
-    fact.filter((f: Furigana) => typeof (f) !== 'string')
-        .forEach((f: Ruby) => console.log(`${f.ruby}: http://jisho.org/search/${encodeURI(f.ruby)}%20%23kanji`));
+    console.log('http://jisho.org/search/%23kanji%20' + encodeURI(fact
+        .filter((f: Furigana) => typeof (f) !== 'string')
+        .map((f: Ruby) => f.ruby).join('')));
     console.log('')
-    console.log('Type something if you got it.');
+    console.log('Hit Enter when you got it. (Control-C to quit without committing to learn this.)');
     var typed = await prompt();
     factIds.forEach(factId => submit(USER, DOCID, factId, newlyLearned, { firstLearned: true, hoursWaited: elapsedHours(start) }));
 }
