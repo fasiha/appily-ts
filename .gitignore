@@ -3,3 +3,5 @@
 mydb/
 node_modules/
 
+*.tar
+*.txt
