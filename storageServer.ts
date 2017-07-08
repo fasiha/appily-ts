@@ -34,7 +34,7 @@ export async function submit(user: string, docId: string, factId: string, ebisuO
 
 import Kefir = require("kefir");
 
-function leveldbToStream(opts?: any): Kefir.Stream<KeyVal, any> {
+export function leveldbToStream(opts?: any): Kefir.Stream<KeyVal, any> {
     var levelStream = db.createReadStream(opts);
     // Can't use `Kefir.fromEvents` because that doesn't understand
     // `close`/`end` events, so the resulting Kefir stream never ends.
@@ -90,7 +90,6 @@ export function omitNonlatestUpdates(opts: any = {}): Kefir.Stream<FactUpdate, a
         .map((x: KeyVal) => JSON.parse(x.value) as FactUpdate);
 }
 
-
 export function collectKefirStream<T>(s: Kefir.Stream<T, any>): Promise<T[]> {
     let ret: T[] = [];
     return s
@@ -98,13 +97,18 @@ export function collectKefirStream<T>(s: Kefir.Stream<T, any>): Promise<T[]> {
         .last()
         .toPromise();
 }
-// drainKefirStream(leveldbToKeyStream()).then(x => console.log("X", x));
 
 import { ebisu } from "./ebisu";
 export function getMostForgottenFact(opts: any = {}): Kefir.Stream<[FactUpdate, number], any> {
     const dnow = new Date();
     const elapsedHours = (d: Date) => ((dnow as any) - (d as any)) / 3600e3 as number;
-    const factUpdateToProb = (f: FactUpdate) => ebisu.predictRecall(f.ebisuObject, elapsedHours(new Date(f.createdAt)));
+    const factUpdateToProb = (f: FactUpdate) => {
+        // JSON converts Infinity to `null` :-/
+        if (f.ebisuObject[2] && isFinite(f.ebisuObject[2])) {
+            return ebisu.predictRecall(f.ebisuObject, elapsedHours(new Date(f.createdAt)));
+        }
+        return 1;
+    };
     let orig = omitNonlatestUpdates(opts);
     // @types/kefir spec for `scan` is too narrow, so I need a lot of `any`s here 😢
     let scanned = orig.scan(([prev, probPrev]: any, next: FactUpdate): any => {
@@ -137,7 +141,6 @@ export function printDb(): void {
     });
 }
 // printDb()
-
 
 // import express = require('express');
 // import bodyParser = require('body-parser');

@@ -32,6 +32,14 @@ function prompt(): Promise<string> {
     });
 }
 
+function buryFactId(factId: string, buryAll: boolean) {
+    const plain = factId.split('-')[0];
+    if (buryAll) {
+        return Promise.all(furiganaFactToFactIds([plain]).map(factId => submit(USER, DOCID, factId, buryForever)));
+    }
+    return submit(USER, DOCID, factId, buryForever);
+}
+
 async function learnFact(fact: Furigana[], factIds: string[]) {
     console.log(`Hey! Learn this:`, fact);
     console.log(factIdToURL(factIds[0]));
@@ -45,6 +53,30 @@ async function learnFact(fact: Furigana[], factIds: string[]) {
 }
 
 const elapsedHours = (d: Date, dnow?: Date) => (((dnow || new Date()) as any) - (d as any)) / 3600e3 as number;
+const alpha = 'ABCDEFGHIJKLM'.split('');
+const HELP_READING = `Type in the reading in ひらがな (hiragana).
+You can also write “bury” and you’ll never see this quiz again.
+To never see any quizzes related to this fact, type “bury all”.`;
+const HELP_KANJI = `This is a multiple choice test. Type in, for example, “a” or “A”. Case doesn’t matter.
+You can also write “bury” and you’ll never see this quiz again.
+To never see any quizzes related to this fact, type “bury all”.`;
+
+// These promises aren’t really needed, I wait on them because I fear the program will exit before they’re resolved.
+async function returnOnCommand(responseText, help, factId) {
+    if (responseText.toLowerCase().indexOf('help') === 0) {
+        console.log(help);
+        return true;
+    } else if (responseText.toLowerCase().indexOf('bury all') === 0) {
+        console.log('Burying all quizzes related to this fact!')
+        await buryFactId(factId, true);
+        return true;
+    } else if (responseText.toLowerCase().indexOf('bury') === 0) {
+        console.log('Burying this quiz.')
+        await buryFactId(factId, false);
+        return true;
+    }
+    return false;
+}
 
 async function administerQuiz(fact: Furigana[], factId: string, allUpdates: FactUpdate[],
     allFacts: Array<Furigana[]>) {
@@ -53,11 +85,14 @@ async function administerQuiz(fact: Furigana[], factId: string, allUpdates: Fact
     let result;
     let start = new Date();
     if (factId.indexOf('-kanji') >= 0) {
-        const alpha = 'ABCDEFGHIJKLM'.split('');
         let confusers = shuffle(sampleSize(allFacts, 4).concat([fact]));
+
         console.log(`What’s the kanji for: ${furiganaStringToReading(fact)}?`);
         confusers.forEach((fact, idx: number) => console.log(`${alpha[idx]}. ${furiganaStringToPlain(fact)}`));
+
         let responseText = await prompt();
+        if (await returnOnCommand(responseText, HELP_KANJI, factId)) { return; }
+
         let responseIdx = alpha.indexOf(responseText.toUpperCase());
         if (responseIdx < 0 || responseIdx >= confusers.length) {
             console.log('Ummm… you ok?');
@@ -73,6 +108,7 @@ async function administerQuiz(fact: Furigana[], factId: string, allUpdates: Fact
     } else {
         console.log(`What’s the reading for: ${furiganaStringToPlain(fact)}`);
         let responseText = await prompt();
+        if (await returnOnCommand(responseText, HELP_READING, factId)) { return; }
         result = responseText === furiganaStringToReading(fact);
         info = { result, response: responseText };
     }
@@ -134,3 +170,4 @@ loop();
 
 // Initial halflife: 15 minutes: all elapsed times will be in units of hours.
 var newlyLearned = ebisu.defaultModel(0.25, 2.5);
+var buryForever = ebisu.defaultModel(Infinity);
