@@ -2,7 +2,7 @@ import {
     FactUpdate, collectKefirStream, getMostForgottenFact, omitNonlatestUpdates, getKnownFactIds,
     makeLeveldbOpts, submit
 } from "./storageServer";
-import {toponyms } from "./toponyms";
+import { toponyms } from "./toponyms";
 import { EbisuObject } from "./ebisu";
 
 

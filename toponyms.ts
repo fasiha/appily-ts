@@ -31,7 +31,7 @@ const allFactsProm: Promise<Array<Furigana[]>> = urlToFuriganas(TOPONYMS_URL);
 const availableFactIdsProm: Promise<Set<string>> = allFactsProm.then(allFacts => new Set(concatMap(allFacts, furiganaFactToFactIds)));
 let submit;
 
-export function setup(externalSubmitFunction:(user: string, docId: string, factId: string, ebisuObject: EbisuObject, updateObject)=>void):void {
+export function setup(externalSubmitFunction: (user: string, docId: string, factId: string, ebisuObject: EbisuObject, updateObject) => void): void {
     submit = externalSubmitFunction;
 }
 
@@ -163,7 +163,7 @@ export async function identifyAvailableFactIds() {
     return new Set(concatMap(await allFactsProm, furiganaFactToFactIds));
 }
 
-export async function findAndLearn(USER:string, DOCID:string, knownFactIds: string[]) {
+export async function findAndLearn(USER: string, DOCID: string, knownFactIds: string[]) {
     const allFacts = await allFactsProm;
     const availableFactIds = await identifyAvailableFactIds();
     const knownIdsSet = new Set(knownFactIds.filter(s => availableFactIds.has(s)));
@@ -187,4 +187,4 @@ function concatMap<T, U>(arr: T[], f: (x: T) => U[]): U[] {
 function any(arr: boolean[]) { return arr.reduce((prev, curr) => prev || curr, false); }
 function all(arr: boolean[]) { return arr.reduce((prev, curr) => prev && curr, true); }
 
-export const toponyms :FactDb= {setup, administerQuiz, findAndLearn};
+export const toponyms: FactDb = { setup, administerQuiz, findAndLearn };
