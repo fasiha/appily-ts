@@ -62,7 +62,9 @@ async function findAndLearn(USER: string, DOCID: string, knownFactIds: string[])
     if (fact) {
         // await learnFact(USER, DOCID, fact, factToFactIds(fact));
         console.log(`Hey! Learn this:`, fact);
-        console.log('http://jisho.org/search/%23kanji%20' + encodeURI(stringsToUniqueCharString(fact.kanjis)));
+        if (fact.kanjis.length) {
+            console.log('http://jisho.org/search/%23kanji%20' + encodeURI(stringsToUniqueCharString(fact.kanjis)));
+        }
         console.log('Hit Enter when you got it. (Control-C to quit without committing to learn this.)');
         const start = new Date();
         const typed = await prompt();
@@ -80,7 +82,7 @@ async function findAndLearn(USER: string, DOCID: string, knownFactIds: string[])
 
 const alpha = 'ABCDEFGHIJKLM'.split('');
 
-function endsWith(big:string, little:string):boolean{
+function endsWith(big: string, little: string): boolean {
     if (big.length < little.length) {
         return false;
         // We do this because if we just relied on lastIndexOf and compared it to difference of lengths, -1 might turn up
@@ -95,10 +97,10 @@ async function administerQuiz(USER: string, DOCID: string, factId: string, allUp
     let fact = allFacts.find(fact => fact.num === plain0);
 
     let info;
-    let result:boolean;
+    let result: boolean;
     let start = new Date();
-    if (endsWith(factId,'-kanji') || endsWith(factId,'-meaning')) {
-        const kanjiQuiz = endsWith(factId,'-kanji') ;
+    if (endsWith(factId, '-kanji') || endsWith(factId, '-meaning')) {
+        const kanjiQuiz = endsWith(factId, '-kanji');
         const confusers = shuffle(sampleSize(kanjiQuiz ? await allFactsWithKanjiProm : allFacts, 4).concat([fact]));
 
         if (kanjiQuiz) {
@@ -121,17 +123,17 @@ async function administerQuiz(USER: string, DOCID: string, factId: string, allUp
         info = {
             result,
             response: confusers[responseIdx].num,
-            confusers: confusers.map(fact=>fact.num)
+            confusers: confusers.map(fact => fact.num)
         };
 
     } else { // reading
-        if (fact.kanjis.length){            
+        if (fact.kanjis.length) {
             console.log(`What’s the reading for: ${fact.kanjis.join('・')}, 「${fact.meaning}」?`);
         } else {
             console.log(`What’s the reading for: 「${fact.meaning}」?`);
         }
         let responseText = await prompt();
-        result = fact.readings.indexOf(responseText)>=0;
+        result = fact.readings.indexOf(responseText) >= 0;
         info = { result, response: responseText };
     }
     info.hoursWaited = elapsedHours(start);

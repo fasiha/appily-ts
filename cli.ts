@@ -7,10 +7,12 @@ import { EbisuObject } from "./ebisu";
 let USER = "ammy";
 
 import { toponyms } from "./toponyms";
+import { tono5k } from "./tono5k";
 toponyms.setup(submit);
+tono5k.setup(submit);
 // Import and setup all FactDb-implementing modules!
 // Then, add them to the docid2module map!
-let docid2module: Map<string, FactDb> = new Map([["toponyms", toponyms]]);
+let docid2module: Map<string, FactDb> = new Map([["toponyms", toponyms], ["tono5k", tono5k]]);
 
 async function loop(SOLE_DOCID: string = '', probThreshold: number = 0.5) {
     const levelOpts = makeLeveldbOpts(USER, SOLE_DOCID);
@@ -36,4 +38,4 @@ async function loop(SOLE_DOCID: string = '', probThreshold: number = 0.5) {
         }
     }
 }
-loop();
+loop("tono5k");
