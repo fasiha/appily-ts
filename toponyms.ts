@@ -4,6 +4,7 @@ import fetch from "node-fetch";
 import { FactDb } from "./storageServer";
 import { ebisu, EbisuObject } from "./ebisu";
 import { furiganaStringToReading, parseFakeRuby, furiganaStringToPlain, Furigana, Ruby } from "./ruby";
+import { elapsedHours, all, prompt, concatMap } from "./utils";
 
 const RUBY_START = '- Ruby: ';
 
@@ -45,19 +46,6 @@ function factIdToURL(s: string) {
     return `${WEB_URL}#${encodeURI(stripFactIdOfSubfact(s))}`;
 }
 
-function prompt(): Promise<string> {
-    return new Promise((resolve, reject) => {
-        var stdin = process.stdin,
-            stdout = process.stdout;
-        stdin.resume();
-        stdout.write('> ');
-        stdin.once('data', data => {
-            resolve(data.toString().trim());
-            stdin.pause();
-        });
-    });
-}
-
 function buryFactId(USER: string, DOCID: string, factId: string, buryAll: boolean) {
     const plain = stripFactIdOfSubfact(factId);
     if (buryAll) {
@@ -79,7 +67,6 @@ async function learnFact(USER: string, DOCID: string, fact: Furigana[], factIds:
     factIds.forEach(factId => submit(USER, DOCID, factId, newlyLearned, { firstLearned: true, hoursWaited: elapsedHours(start) }));
 }
 
-const elapsedHours = (d: Date, dnow?: Date) => (((dnow || new Date()) as any) - (d as any)) / 3600e3 as number;
 const alpha = 'ABCDEFGHIJKLM'.split('');
 const HELP_READING = `Type in the reading in ひらがな (hiragana).
 You can also write “bury” and you’ll never see this quiz again.
@@ -89,7 +76,7 @@ You can also write “bury” and you’ll never see this quiz again.
 To never see any quizzes related to this fact, type “bury all”.`;
 
 // These promises aren’t really needed, I wait on them because I fear the program will exit before they’re resolved.
-async function returnOnCommand(responseText, help, buryFact) {
+async function returnOnCommand(responseText: string, help: string, buryFact: ((boolean) => any)) {
     if (responseText.toLowerCase().indexOf('help') === 0) {
         console.log(help);
         return true;
@@ -111,6 +98,7 @@ async function administerQuiz(USER: string, DOCID: string, factId: string, allUp
     let plain0 = stripFactIdOfSubfact(factId);
     let fact = allFacts.find(fact => furiganaStringToPlain(fact) === plain0);
 
+    let makeBuryFn = (factId: string) => ((bool: boolean) => buryFactId(USER, DOCID, factId, bool));
     let info;
     let result;
     let start = new Date();
@@ -121,7 +109,7 @@ async function administerQuiz(USER: string, DOCID: string, factId: string, allUp
         confusers.forEach((fact, idx: number) => console.log(`${alpha[idx]}. ${furiganaStringToPlain(fact)}`));
 
         let responseText = await prompt();
-        if (await returnOnCommand(responseText, HELP_KANJI, factId)) { return; }
+        if (await returnOnCommand(responseText, HELP_KANJI, makeBuryFn(factId))) { return; }
 
         let responseIdx = alpha.indexOf(responseText.toUpperCase());
         if (responseIdx < 0 || responseIdx >= confusers.length) {
@@ -138,7 +126,7 @@ async function administerQuiz(USER: string, DOCID: string, factId: string, allUp
     } else {
         console.log(`What’s the reading for: ${furiganaStringToPlain(fact)}`);
         let responseText = await prompt();
-        if (await returnOnCommand(responseText, HELP_READING, factId)) { return; }
+        if (await returnOnCommand(responseText, HELP_READING, makeBuryFn(factId))) { return; }
         result = responseText === furiganaStringToReading(fact);
         info = { result, response: responseText };
     }
@@ -159,13 +147,9 @@ async function administerQuiz(USER: string, DOCID: string, factId: string, allUp
     else { console.log('❌❌❌', fact); }
 }
 
-async function identifyAvailableFactIds() {
-    return new Set(concatMap(await allFactsProm, furiganaFactToFactIds));
-}
-
 async function findAndLearn(USER: string, DOCID: string, knownFactIds: string[]) {
     const allFacts = await allFactsProm;
-    const availableFactIds = await identifyAvailableFactIds();
+    const availableFactIds = new Set(concatMap(allFacts, furiganaFactToFactIds));
     const knownIdsSet = new Set(knownFactIds.filter(s => availableFactIds.has(s)));
 
     let toLearnFact: Furigana[] = allFacts.find(fact => !all(furiganaFactToFactIds(fact).map(s => knownIdsSet.has(s))));
@@ -180,14 +164,5 @@ function stripFactIdOfSubfact(factId: string): string {
     return factId.split('-').slice(0, -1).join('');
 }
 
-function concatMap<T, U>(arr: T[], f: (x: T) => U[]): U[] {
-    let ret = [];
-    for (let x of arr) {
-        ret = ret.concat(f(x));
-    }
-    return ret;
-}
-function any(arr: boolean[]) { return arr.reduce((prev, curr) => prev || curr, false); }
-function all(arr: boolean[]) { return arr.reduce((prev, curr) => prev && curr, true); }
 
 export const toponyms: FactDb = { setup, administerQuiz, findAndLearn, stripFactIdOfSubfact };

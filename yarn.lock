@@ -66,13 +66,7 @@
   dependencies:
     "@types/node" "*"
 
-"@types/lodash.shuffle@^4.2.2":
-  version "4.2.2"
-  resolved "https://registry.yarnpkg.com/@types/lodash.shuffle/-/lodash.shuffle-4.2.2.tgz#49e6c5b26086bc2d0715e90c18f0d712eae3be56"
-  dependencies:
-    "@types/lodash" "*"
-
-"@types/lodash@*", "@types/lodash@^4.14.68":
+"@types/lodash@^4.14.68":
   version "4.14.68"
   resolved "https://registry.yarnpkg.com/@types/lodash/-/lodash-4.14.68.tgz#754fbab68bd2bbb69547dc8ce7574f7012eed7f6"
 
@@ -1131,10 +1125,6 @@ load-json-file@^1.0.0:
     pify "^2.0.0"
     pinkie-promise "^2.0.0"
     strip-bom "^2.0.0"
-
-lodash.shuffle@^4.2.0:
-  version "4.2.0"
-  resolved "https://registry.yarnpkg.com/lodash.shuffle/-/lodash.shuffle-4.2.0.tgz#145b5053cf875f6f5c2a33f48b6e9948c6ec7b4b"
 
 lodash@^4.17.4:
   version "4.17.4"
