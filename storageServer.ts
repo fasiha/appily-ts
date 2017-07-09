@@ -11,8 +11,14 @@ export interface FactUpdate {
     docId: string;
     factId: string;
     createdAt: Date;
-    ebisuObject: any;
+    ebisuObject: EbisuObject;
     updateObject?: any;
+}
+
+export interface FactDb {
+    setup: any;
+    administerQuiz: (USER: string, DOCID: string, factId: string, allUpdates: FactUpdate[])=>Promise<void>;
+    findAndLearn: (USER:string, DOCID:string, knownFactIds: string[])=>Promise<void>;
 }
 
 interface KeyVal { key: string, value: string };
