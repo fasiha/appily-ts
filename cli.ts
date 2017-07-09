@@ -38,4 +38,20 @@ async function loop(SOLE_DOCID: string = '', probThreshold: number = 0.5) {
         }
     }
 }
-loop("tono5k");
+// loop("tono5k");
+
+if (require.main === module) {
+    if (process.argv.length <= 2) {
+        loop();
+    } else {
+        let t = process.argv[2];
+        if (docid2module.has(t)) {
+            loop(t);
+        } else {
+            console.log(`Couldn't find fact-document “${t}”. Available:`)
+            console.log(Array.from(docid2module.keys()).map(s=>'- ' + s).join('\n'));
+            console.log('Running standard setup.')
+            loop();
+        }
+    }
+}
