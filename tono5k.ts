@@ -113,7 +113,7 @@ async function administerQuiz(USER: string, DOCID: string, factId: string, allUp
             confusers.forEach((fact, idx: number) => console.log(`${alpha[idx]}. ${fact.kanjis.join('・')}`));
         } else {
             // meaning quiz
-            console.log(`What’s the meaning of: ${kanjiQuiz ? fact.readings.join('・') + ', ' : ''}${fact.readings.join('・')}?`);
+            console.log(`What’s the meaning of: ${fact.kanjis.length ? fact.kanjis.join('・') + ', ' : ''}${fact.readings.join('・')}?`);
             confusers.forEach((fact, idx) => console.log(`${alpha[idx]}. ${fact.meaning}`));
         }
 
