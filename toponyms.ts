@@ -55,7 +55,8 @@ function buryFactId(USER: string, DOCID: string, factId: string, buryAll: boolea
 }
 
 async function learnFact(USER: string, DOCID: string, fact: Furigana[], factIds: string[]) {
-    console.log(`Hey! Learn this:`, fact);
+    console.log(`Hey! Learn this:`);
+    console.log(fact);
     console.log(factIdToURL(factIds[0]));
     var start = new Date();
     console.log('http://jisho.org/search/%23kanji%20' + encodeURI(fact

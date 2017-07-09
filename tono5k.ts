@@ -65,7 +65,8 @@ async function findAndLearn(USER: string, DOCID: string, knownFactIds: string[])
 
     if (fact) {
         // await learnFact(USER, DOCID, fact, factToFactIds(fact));
-        console.log(`Hey! Learn this:`, fact);
+        console.log(`Hey! Learn this:`);
+        console.log(fact);
         if (fact.kanjis.length) {
             console.log('http://jisho.org/search/%23kanji%20' + encodeURI(stringsToUniqueCharString(fact.kanjis)));
         }
