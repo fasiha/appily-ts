@@ -16,9 +16,10 @@ export interface FactUpdate {
 }
 
 export interface FactDb {
-    setup: any;
+    setup: (submit: (user: string, docId: string, factId: string, ebisuObject: EbisuObject, updateObject: any) => Promise<void>) => void;
     administerQuiz: (USER: string, DOCID: string, factId: string, allUpdates: FactUpdate[]) => Promise<void>;
     findAndLearn: (USER: string, DOCID: string, knownFactIds: string[]) => Promise<void>;
+    stripFactIdOfSubfact: (factId: string) => string;
 }
 
 interface KeyVal { key: string, value: string };

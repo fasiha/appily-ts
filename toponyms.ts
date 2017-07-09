@@ -7,7 +7,7 @@ import { furiganaStringToReading, parseFakeRuby, furiganaStringToPlain, Furigana
 
 const RUBY_START = '- Ruby: ';
 
-export async function urlToFuriganas(url: string): Promise<Array<Furigana[]>> {
+async function urlToFuriganas(url: string): Promise<Array<Furigana[]>> {
     var req = await fetch(url);
     var text: string = await req.text();
     var rubyLines: string[] = text.split('\n').filter(s => s.indexOf(RUBY_START) === 0).map(s => s.slice(RUBY_START.length));
@@ -15,7 +15,7 @@ export async function urlToFuriganas(url: string): Promise<Array<Furigana[]>> {
     return furiganas;
 }
 
-export function furiganaFactToFactIds(word: Furigana[]) {
+function furiganaFactToFactIds(word: Furigana[]) {
     let plain = furiganaStringToPlain(word);
     return [`${plain}-kanji`, `${plain}-reading`];
 }
@@ -31,7 +31,7 @@ const allFactsProm: Promise<Array<Furigana[]>> = urlToFuriganas(TOPONYMS_URL);
 const availableFactIdsProm: Promise<Set<string>> = allFactsProm.then(allFacts => new Set(concatMap(allFacts, furiganaFactToFactIds)));
 let submit;
 
-export function setup(externalSubmitFunction: (user: string, docId: string, factId: string, ebisuObject: EbisuObject, updateObject) => void): void {
+function setup(externalSubmitFunction: (user: string, docId: string, factId: string, ebisuObject: EbisuObject, updateObject) => void): void {
     submit = externalSubmitFunction;
 }
 
@@ -42,7 +42,7 @@ interface FactUpdate {
 }
 
 function factIdToURL(s: string) {
-    return `${WEB_URL}#${encodeURI(s.split('-')[0])}`;
+    return `${WEB_URL}#${encodeURI(stripFactIdOfSubfact(s))}`;
 }
 
 function prompt(): Promise<string> {
@@ -59,7 +59,7 @@ function prompt(): Promise<string> {
 }
 
 function buryFactId(USER: string, DOCID: string, factId: string, buryAll: boolean) {
-    const plain = factId.split('-')[0];
+    const plain = stripFactIdOfSubfact(factId);
     if (buryAll) {
         return Promise.all(furiganaFactToFactIds([plain]).map(factId => submit(USER, DOCID, factId, buryForever)));
     }
@@ -105,10 +105,10 @@ async function returnOnCommand(responseText, help, buryFact) {
     return false;
 }
 
-export async function administerQuiz(USER: string, DOCID: string, factId: string, allUpdates: FactUpdate[]) {
+async function administerQuiz(USER: string, DOCID: string, factId: string, allUpdates: FactUpdate[]) {
     console.log(`¡¡¡🎆 QUIZ TIME 🎇!!!`);
     let allFacts: Array<Furigana[]> = await allFactsProm;
-    let plain0 = factId.split('-').slice(0, -1).join('')
+    let plain0 = stripFactIdOfSubfact(factId);
     let fact = allFacts.find(fact => furiganaStringToPlain(fact) === plain0);
 
     let info;
@@ -159,11 +159,11 @@ export async function administerQuiz(USER: string, DOCID: string, factId: string
     else { console.log('❌❌❌', fact); }
 }
 
-export async function identifyAvailableFactIds() {
+async function identifyAvailableFactIds() {
     return new Set(concatMap(await allFactsProm, furiganaFactToFactIds));
 }
 
-export async function findAndLearn(USER: string, DOCID: string, knownFactIds: string[]) {
+async function findAndLearn(USER: string, DOCID: string, knownFactIds: string[]) {
     const allFacts = await allFactsProm;
     const availableFactIds = await identifyAvailableFactIds();
     const knownIdsSet = new Set(knownFactIds.filter(s => availableFactIds.has(s)));
@@ -176,6 +176,9 @@ export async function findAndLearn(USER: string, DOCID: string, knownFactIds: st
     }
 }
 
+function stripFactIdOfSubfact(factId: string): string {
+    return factId.split('-').slice(0, -1).join('');
+}
 
 function concatMap<T, U>(arr: T[], f: (x: T) => U[]): U[] {
     let ret = [];
@@ -187,4 +190,4 @@ function concatMap<T, U>(arr: T[], f: (x: T) => U[]): U[] {
 function any(arr: boolean[]) { return arr.reduce((prev, curr) => prev || curr, false); }
 function all(arr: boolean[]) { return arr.reduce((prev, curr) => prev && curr, true); }
 
-export const toponyms: FactDb = { setup, administerQuiz, findAndLearn };
+export const toponyms: FactDb = { setup, administerQuiz, findAndLearn, stripFactIdOfSubfact };

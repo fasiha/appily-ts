@@ -16,7 +16,7 @@ async function loop(probThreshold: number = 0.5) {
 
     let [update0, prob0]: [FactUpdate, number] = await getMostForgottenFact(levelOpts).toPromise();
     if (prob0 && prob0 <= probThreshold) {
-        var plain0 = update0.factId.split('-')[0];
+        var plain0 = toponyms.stripFactIdOfSubfact(update0.factId);
         var allRelatedUpdates = await collectKefirStream(omitNonlatestUpdates(makeLeveldbOpts(USER, DOCID, plain0, true)));
 
         console.log("Review!", prob0);
