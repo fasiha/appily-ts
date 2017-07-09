@@ -25,9 +25,15 @@ async function loop(SOLE_DOCID: string = '', probThreshold: number = 0.5) {
         console.log("Review!", prob0);
         await factdb.administerQuiz(USER, docId, update0.factId, allRelatedUpdates);
     } else {
-        // FIXME why Array.from required here? TypeScript problem?
-        for (const [docId, factdb] of Array.from(docid2module.entries())) {
-            await factdb.findAndLearn(USER, docId, await collectKefirStream(getKnownFactIds(makeLeveldbOpts(USER, docId))));
+        if (SOLE_DOCID) {
+            const factdb = docid2module.get(SOLE_DOCID);
+            await factdb.findAndLearn(USER, SOLE_DOCID, await collectKefirStream(getKnownFactIds(makeLeveldbOpts(USER, SOLE_DOCID))));
+
+        } else {
+            // FIXME why Array.from required here? TypeScript problem?
+            for (const [docId, factdb] of Array.from(docid2module.entries())) {
+                await factdb.findAndLearn(USER, docId, await collectKefirStream(getKnownFactIds(makeLeveldbOpts(USER, docId))));
+            }
         }
     }
 }
