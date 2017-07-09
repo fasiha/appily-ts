@@ -49,7 +49,7 @@ if (require.main === module) {
             loop(t);
         } else {
             console.log(`Couldn't find fact-document “${t}”. Available:`)
-            console.log(Array.from(docid2module.keys()).map(s=>'- ' + s).join('\n'));
+            console.log(Array.from(docid2module.keys()).map(s => '- ' + s).join('\n'));
             console.log('Running standard setup.')
             loop();
         }
