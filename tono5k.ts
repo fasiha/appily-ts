@@ -3,7 +3,7 @@ import fetch from "node-fetch";
 
 import { FactDb } from "./storageServer";
 import { ebisu, EbisuObject } from "./ebisu";
-import { elapsedHours, all, concatMap, prompt } from "./utils";
+import { elapsedHours, all, any, concatMap, prompt } from "./utils";
 
 let TONO_URL = "https://raw.githubusercontent.com/fasiha/tono-yamazaki-maekawa/master/tono.json";
 
@@ -58,7 +58,11 @@ async function findAndLearn(USER: string, DOCID: string, knownFactIds: string[])
     const availableFactIds = new Set(concatMap(allFacts, factToFactIds));
     const knownIdsSet = new Set(knownFactIds.filter(s => availableFactIds.has(s)));
 
-    let fact: Tono = allFacts.find(fact => !all(factToFactIds(fact).map(s => knownIdsSet.has(s))));
+    // Only look for the following parts of speech:
+    const lookFors = 'n.,v.,adj.,adv.,pron.,adn.'.split(',');
+    let fact: Tono = allFacts.find(fact => lookFors.findIndex(pos => fact.meaning.includes(pos)) >= 0
+        && !all(factToFactIds(fact).map(s => knownIdsSet.has(s))));
+
     if (fact) {
         // await learnFact(USER, DOCID, fact, factToFactIds(fact));
         console.log(`Hey! Learn this:`, fact);
