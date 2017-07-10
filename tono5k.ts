@@ -1,3 +1,4 @@
+import { readFileSync, writeFile } from "fs";
 import { shuffle, sampleSize } from "lodash";
 import fetch from "node-fetch";
 
@@ -35,8 +36,32 @@ interface Tono {
     register?: string;
 }
 
+async function fetchAndSave(url: string, local: string) {
+    let text: string = await (await fetch(url)).text();
+    writeFile(local, text, (e) => true); // don't `await` the write! Return the fetched data immediately.
+    return text
+}
+
+async function cachedUrlFetch(url: string, loc: string): Promise<Tono[]> {
+    let fetchEnd: boolean = true;
+    let ret;
+    try {
+        // Slurp from disk: this is sync because the app isn't doing anything else here.
+        ret = readFileSync(loc, 'utf8');
+    } catch (e) {
+        // Not found! Fetch from network (then save to disk behind the scenes).
+        ret = await fetchAndSave(url, loc);
+        fetchEnd = false;
+    }
+    // If we found it on disk, fetch from the network & save *in the background*!
+    if (fetchEnd) {
+        fetchAndSave(url, loc); // NO await here!
+    }
+    return JSON.parse(ret);
+}
+
 async function urlToFacts(url: string): Promise<Tono[]> {
-    let json: Tono[] = await (await fetch(url)).json();
+    let json: Tono[] = await cachedUrlFetch(url, 'tono.json');
     return json.map(tono => {
         tono.kanjis = dedupeViaSets(tono.kanjis.map(k => furiganaStringToPlain(parseJmdictFurigana(k))));
         return tono;
