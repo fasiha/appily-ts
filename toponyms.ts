@@ -1,16 +1,14 @@
 import { shuffle, sampleSize } from "lodash";
-import fetch from "node-fetch";
 
 import { FactDb } from "./storageServer";
 import { ebisu, EbisuObject } from "./ebisu";
 import { furiganaStringToReading, parseMarkdownLinkRuby, furiganaStringToPlain, Furigana, Ruby } from "./ruby";
-import { elapsedHours, all, prompt, concatMap } from "./utils";
+import { cachedUrlFetch,elapsedHours, all, prompt, concatMap } from "./utils";
 
 const RUBY_START = '- Ruby: ';
 
-async function urlToFuriganas(url: string): Promise<Array<Furigana[]>> {
-    var req = await fetch(url);
-    var text: string = await req.text();
+async function urlToFuriganas(url: string, local:string): Promise<Array<Furigana[]>> {
+    var text: string = await cachedUrlFetch(url,local);
     var rubyLines: string[] = text.split('\n').filter(s => s.indexOf(RUBY_START) === 0).map(s => s.slice(RUBY_START.length));
     var furiganas = rubyLines.map(parseMarkdownLinkRuby);
     return furiganas;
@@ -22,13 +20,14 @@ function furiganaFactToFactIds(word: Furigana[]) {
 }
 
 let TOPONYMS_URL = "https://raw.githubusercontent.com/fasiha/toponyms-and-nymes/gh-pages/README.md";
+let TOPONYMS_LOCAL = "toponyms.md";
 let WEB_URL = "https://fasiha.github.io/toponyms-and-nymes/";
 
 // Initial halflife: 15 minutes: all elapsed times will be in units of hours.
 const newlyLearned = ebisu.defaultModel(0.25, 2.5);
 const buryForever = ebisu.defaultModel(Infinity);
 
-const allFactsProm: Promise<Array<Furigana[]>> = urlToFuriganas(TOPONYMS_URL);
+const allFactsProm: Promise<Array<Furigana[]>> = urlToFuriganas(TOPONYMS_URL, TOPONYMS_LOCAL);
 const availableFactIdsProm: Promise<Set<string>> = allFactsProm.then(allFacts => new Set(concatMap(allFacts, furiganaFactToFactIds)));
 let submit;
 

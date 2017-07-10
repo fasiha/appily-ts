@@ -1,18 +1,17 @@
-import { readFileSync, writeFile } from "fs";
 import { shuffle, sampleSize } from "lodash";
-import fetch from "node-fetch";
 
 import { FactDb } from "./storageServer";
 import { ebisu, EbisuObject } from "./ebisu";
-import { dedupeViaSets, endsWith, elapsedHours, all, any, concatMap, prompt } from "./utils";
+import {cachedUrlFetch, dedupeViaSets, endsWith, elapsedHours, all, any, concatMap, prompt } from "./utils";
 import { furiganaStringToPlain, parseJmdictFurigana } from "./ruby";
 
-let TONO_URL = "https://raw.githubusercontent.com/fasiha/tono-yamazaki-maekawa/master/tono.json";
+const TONO_URL = "https://raw.githubusercontent.com/fasiha/tono-yamazaki-maekawa/master/tono.json";
+const TONO_LOCAL = 'tono.json';
 
 const newlyLearned = ebisu.defaultModel(0.25, 2.5);
 const buryForever = ebisu.defaultModel(Infinity);
 
-const allFactsProm: Promise<Tono[]> = urlToFacts(TONO_URL);
+const allFactsProm: Promise<Tono[]> = urlToFacts(TONO_URL, TONO_LOCAL);
 const availableFactIdsProm: Promise<Set<string>> = allFactsProm.then(allFacts => new Set(concatMap(allFacts, factToFactIds)));
 const allFactsWithKanjiProm = allFactsProm.then(allFacts => allFacts.filter((fact: Tono) => fact.kanjis.length > 0));
 let submit;
@@ -36,32 +35,8 @@ interface Tono {
     register?: string;
 }
 
-async function fetchAndSave(url: string, local: string) {
-    let text: string = await (await fetch(url)).text();
-    writeFile(local, text, (e) => true); // don't `await` the write! Return the fetched data immediately.
-    return text
-}
-
-async function cachedUrlFetch(url: string, loc: string): Promise<Tono[]> {
-    let fetchEnd: boolean = true;
-    let ret;
-    try {
-        // Slurp from disk: this is sync because the app isn't doing anything else here.
-        ret = readFileSync(loc, 'utf8');
-    } catch (e) {
-        // Not found! Fetch from network (then save to disk behind the scenes).
-        ret = await fetchAndSave(url, loc);
-        fetchEnd = false;
-    }
-    // If we found it on disk, fetch from the network & save *in the background*!
-    if (fetchEnd) {
-        fetchAndSave(url, loc); // NO await here!
-    }
-    return JSON.parse(ret);
-}
-
-async function urlToFacts(url: string): Promise<Tono[]> {
-    let json: Tono[] = await cachedUrlFetch(url, 'tono.json');
+async function urlToFacts(url: string, local:string): Promise<Tono[]> {
+    let json: Tono[] = JSON.parse(await cachedUrlFetch(url, local));
     return json.map(tono => {
         tono.kanjis = dedupeViaSets(tono.kanjis.map(k => furiganaStringToPlain(parseJmdictFurigana(k))));
         return tono;
