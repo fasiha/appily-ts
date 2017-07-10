@@ -3,7 +3,8 @@ import fetch from "node-fetch";
 
 import { FactDb } from "./storageServer";
 import { ebisu, EbisuObject } from "./ebisu";
-import { endsWith, elapsedHours, all, any, concatMap, prompt } from "./utils";
+import { dedupeViaSets, endsWith, elapsedHours, all, any, concatMap, prompt } from "./utils";
+import { furiganaStringToPlain, parseJmdictFurigana } from "./ruby";
 
 let TONO_URL = "https://raw.githubusercontent.com/fasiha/tono-yamazaki-maekawa/master/tono.json";
 
@@ -35,8 +36,11 @@ interface Tono {
 }
 
 async function urlToFacts(url: string): Promise<Tono[]> {
-    var req = await fetch(url);
-    return req.json();
+    let json: Tono[] = await (await fetch(url)).json();
+    return json.map(tono => {
+        tono.kanjis = dedupeViaSets(tono.kanjis.map(k => furiganaStringToPlain(parseJmdictFurigana(k))));
+        return tono;
+    })
 }
 
 function factToFactIds(fact: Tono): string[] {

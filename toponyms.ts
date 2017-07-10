@@ -3,7 +3,7 @@ import fetch from "node-fetch";
 
 import { FactDb } from "./storageServer";
 import { ebisu, EbisuObject } from "./ebisu";
-import { furiganaStringToReading, parseFakeRuby, furiganaStringToPlain, Furigana, Ruby } from "./ruby";
+import { furiganaStringToReading, parseMarkdownLinkRuby, furiganaStringToPlain, Furigana, Ruby } from "./ruby";
 import { elapsedHours, all, prompt, concatMap } from "./utils";
 
 const RUBY_START = '- Ruby: ';
@@ -12,7 +12,7 @@ async function urlToFuriganas(url: string): Promise<Array<Furigana[]>> {
     var req = await fetch(url);
     var text: string = await req.text();
     var rubyLines: string[] = text.split('\n').filter(s => s.indexOf(RUBY_START) === 0).map(s => s.slice(RUBY_START.length));
-    var furiganas = rubyLines.map(parseFakeRuby);
+    var furiganas = rubyLines.map(parseMarkdownLinkRuby);
     return furiganas;
 }
 
