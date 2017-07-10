@@ -8,11 +8,12 @@ let USER = "ammy";
 
 import { toponyms } from "./toponyms";
 import { tono5k } from "./tono5k";
-toponyms.setup(submit);
-tono5k.setup(submit);
+import { dbjg } from "./dbjg";
 // Import and setup all FactDb-implementing modules!
 // Then, add them to the docid2module map!
-let docid2module: Map<string, FactDb> = new Map([["toponyms", toponyms], ["tono5k", tono5k]]);
+let docid2module: Map<string, FactDb> = new Map([["toponyms", toponyms], ["tono5k", tono5k], ["dbjg", dbjg]]);
+
+Array.from(docid2module.values()).map(m => m.setup(submit));
 
 async function loop(SOLE_DOCID: string = '', probThreshold: number = 0.5) {
     const levelOpts = makeLeveldbOpts(USER, SOLE_DOCID);
@@ -38,7 +39,6 @@ async function loop(SOLE_DOCID: string = '', probThreshold: number = 0.5) {
         }
     }
 }
-// loop("tono5k");
 
 if (require.main === module) {
     if (process.argv.length <= 2) {
