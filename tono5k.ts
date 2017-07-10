@@ -3,7 +3,7 @@ import fetch from "node-fetch";
 
 import { FactDb } from "./storageServer";
 import { ebisu, EbisuObject } from "./ebisu";
-import { elapsedHours, all, any, concatMap, prompt } from "./utils";
+import { endsWith, elapsedHours, all, any, concatMap, prompt } from "./utils";
 
 let TONO_URL = "https://raw.githubusercontent.com/fasiha/tono-yamazaki-maekawa/master/tono.json";
 
@@ -86,14 +86,6 @@ async function findAndLearn(USER: string, DOCID: string, knownFactIds: string[])
 
 
 const alpha = 'ABCDEFGHIJKLM'.split('');
-
-function endsWith(big: string, little: string): boolean {
-    if (big.length < little.length) {
-        return false;
-        // We do this because if we just relied on lastIndexOf and compared it to difference of lengths, -1 might turn up
-    }
-    return big.lastIndexOf(little) === (big.length - little.length);
-}
 
 async function administerQuiz(USER: string, DOCID: string, factId: string, allUpdates: FactUpdate[]) {
     console.log(`¡¡¡🎆 QUIZ TIME 🎇!!!`);

@@ -24,3 +24,11 @@ export function prompt(): Promise<string> {
 export function elapsedHours(d: Date, dnow?: Date) {
     return (((dnow || new Date()) as any) - (d as any)) / 3600e3 as number
 };
+
+export function endsWith(big: string, little: string): boolean {
+    if (big.length < little.length) {
+        return false;
+        // We do this because if we just relied on lastIndexOf and compared it to difference of lengths, -1 might turn up
+    }
+    return big.lastIndexOf(little) === (big.length - little.length);
+}
