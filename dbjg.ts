@@ -79,18 +79,22 @@ async function administerQuiz(USER: string, DOCID: string, factId: string, allUp
     let allFacts: Sentence[] = await allFactsProm;
     let fact = allFacts.find(fact => fact.expression === factId);
 
-    console.log(`English translation: “${fact.translation}”`);
     const shuffled = shuffle(fact.expression.split(''));
-    shuffled.forEach((c: string, i: number) => console.log(`${leftpad(i + 1, 2)}: ${c}`));
 
-    let info;
+    let info: any = {};
     let result: boolean;
     let start = new Date();
 
     while (1) {
+        console.log(`English translation: “${fact.translation}”`);
+        shuffled.forEach((c: string, i: number) => console.log(`${leftpad(i + 1, 2)}: ${c}`));
         console.log('Type in numbers:')
         const resp = await prompt();
-        const idxs = resp.split(/\D+/).map(s => parseFloat(s) - 1);
+        const idxs = resp
+            .split(/\D+/)
+            .filter(s => s)
+            .map(s => parseFloat(s) - 1)
+            .filter(n => n >= 0 && n < shuffled.length);
         const reconstructed = idxs.map(i => shuffled[i]).join('');
         if (idxs.length !== shuffled.length) {
             console.log(`Your answer is incomplete (need ${shuffled.length - idxs.length} more):\n「${reconstructed}」`);
