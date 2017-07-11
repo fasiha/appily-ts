@@ -117,7 +117,7 @@ export function getMostForgottenFact(db: Db, opts: any = {}): Kefir.Stream<[Fact
     };
     let orig = omitNonlatestUpdates(db, opts);
     // @types/kefir spec for `scan` is too narrow, so I need a lot of `any`s here 😢
-    let scanned = orig.scan(([prev, probPrev]: any, next: FactUpdate): any => {
+    let scanned: Kefir.Stream<[FactUpdate, number], any> = orig.scan(([prev, probPrev]: any, next: FactUpdate): any => {
         if (!prev) {
             let prob = factUpdateToProb(next);
             return [next, prob];
@@ -125,11 +125,9 @@ export function getMostForgottenFact(db: Db, opts: any = {}): Kefir.Stream<[Fact
         let probNext = factUpdateToProb(next);
         if (probNext < probPrev) { return [next, probNext]; }
         return [prev, probPrev];
-    }, [null, null] as any);
+    }, [null, null] as any) as any;
     return scanned
-        .last()
-        .map(x => [x[0] as FactUpdate, x[1] as number]);
-    // This map is ONLY to make the return type as specified above. `scan`'s annotation should be more flexible.
+        .last();
 }
 // var f = mostForgottenFact("ammy"); f.log();
 
