@@ -1,39 +1,42 @@
 import {
     FactUpdate, collectKefirStream, getMostForgottenFact, omitNonlatestUpdates, getKnownFactIds,
-    makeLeveldbOpts, submit, FactDb
+    makeLeveldbOpts, submit, FactDb, db
 } from "./storageServer";
 import { EbisuObject } from "./ebisu";
+import { prompt } from "./utils";
 
 let USER = "ammy";
 
+// Import all FactDb-implementing modules, then add them to the docid2module map!
 import { toponyms } from "./toponyms";
 import { tono5k } from "./tono5k";
-toponyms.setup(submit);
-tono5k.setup(submit);
-// Import and setup all FactDb-implementing modules!
-// Then, add them to the docid2module map!
 let docid2module: Map<string, FactDb> = new Map([["toponyms", toponyms], ["tono5k", tono5k]]);
+
+async function cliSubmit(user: string, docId: string, factId: string, ebisuObject: EbisuObject, updateObject: any) {
+    return submit(db, user, docId, factId, ebisuObject, updateObject);
+}
+Array.from(docid2module.values()).forEach(factdb => factdb.setup(cliSubmit, prompt));
 
 async function loop(SOLE_DOCID: string = '', probThreshold: number = 0.5) {
     const levelOpts = makeLeveldbOpts(USER, SOLE_DOCID);
 
-    let [update0, prob0]: [FactUpdate, number] = await getMostForgottenFact(levelOpts).toPromise();
+    let [update0, prob0]: [FactUpdate, number] = await getMostForgottenFact(db, levelOpts).toPromise();
     if (prob0 && prob0 <= probThreshold) {
         const docId = update0.docId;
         const factdb = docid2module.get(docId);
         const plain0 = factdb.stripFactIdOfSubfact(update0.factId);
-        const allRelatedUpdates = await collectKefirStream(omitNonlatestUpdates(makeLeveldbOpts(USER, docId, plain0, true)));
+        const allRelatedUpdates = await collectKefirStream(omitNonlatestUpdates(db, makeLeveldbOpts(USER, docId, plain0, true)));
 
         console.log("Review!", prob0);
         await factdb.administerQuiz(USER, docId, update0.factId, allRelatedUpdates);
     } else {
         if (SOLE_DOCID) {
             const factdb = docid2module.get(SOLE_DOCID);
-            await factdb.findAndLearn(USER, SOLE_DOCID, await collectKefirStream(getKnownFactIds(makeLeveldbOpts(USER, SOLE_DOCID))));
+            await factdb.findAndLearn(USER, SOLE_DOCID, await collectKefirStream(getKnownFactIds(db, makeLeveldbOpts(USER, SOLE_DOCID))));
         } else {
             // FIXME why Array.from required here? TypeScript problem?
             for (const [docId, factdb] of Array.from(docid2module.entries())) {
-                await factdb.findAndLearn(USER, docId, await collectKefirStream(getKnownFactIds(makeLeveldbOpts(USER, docId))));
+                await factdb.findAndLearn(USER, docId, await collectKefirStream(getKnownFactIds(db, makeLeveldbOpts(USER, docId))));
             }
         }
     }

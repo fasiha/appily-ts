@@ -2,7 +2,7 @@ import { shuffle, sampleSize } from "lodash";
 
 import { FactDb } from "./storageServer";
 import { ebisu, EbisuObject } from "./ebisu";
-import {cachedUrlFetch, dedupeViaSets, endsWith, elapsedHours, all, any, concatMap, prompt } from "./utils";
+import {cachedUrlFetch, dedupeViaSets, endsWith, elapsedHours, all, any, concatMap } from "./utils";
 import { furiganaStringToPlain, parseJmdictFurigana } from "./ruby";
 
 const TONO_URL = "https://raw.githubusercontent.com/fasiha/tono-yamazaki-maekawa/master/tono.json";
@@ -14,10 +14,13 @@ const buryForever = ebisu.defaultModel(Infinity);
 const allFactsProm: Promise<Tono[]> = urlToFacts(TONO_URL, TONO_LOCAL);
 const availableFactIdsProm: Promise<Set<string>> = allFactsProm.then(allFacts => new Set(concatMap(allFacts, factToFactIds)));
 const allFactsWithKanjiProm = allFactsProm.then(allFacts => allFacts.filter((fact: Tono) => fact.kanjis.length > 0));
-let submit;
+let submit  : (user: string, docId: string, factId: string, ebisuObject: EbisuObject, updateObject) => void;
+let prompt : () => Promise<string>;
 
-function setup(externalSubmitFunction: (user: string, docId: string, factId: string, ebisuObject: EbisuObject, updateObject) => void): void {
+function setup(externalSubmitFunction: (user: string, docId: string, factId: string, ebisuObject: EbisuObject, updateObject) => void,
+    externalPromptFunction: ()=>Promise<string>): void {
     submit = externalSubmitFunction;
+    prompt = externalPromptFunction;
 }
 
 function stripFactIdOfSubfact(factId: string): string {
