@@ -1,7 +1,8 @@
 import {
     FactUpdate, collectKefirStream, getMostForgottenFact, omitNonlatestUpdates, getKnownFactIds,
-    makeLeveldbOpts, submit, FactDb, db
+    makeLeveldbOpts, submit, FactDb
 } from "./storageServer";
+import { db } from "./diskDb";
 import { EbisuObject } from "./ebisu";
 import { prompt } from "./utils";
 

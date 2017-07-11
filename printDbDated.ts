@@ -1,4 +1,5 @@
-import { collectKefirStream, leveldbToStream, db } from "./storageServer";
+import { db } from "./diskDb";
+import { collectKefirStream, leveldbToStream } from "./storageServer";
 
 const key2timestamp = s => s.split('::')[3];
 collectKefirStream(leveldbToStream(db))
