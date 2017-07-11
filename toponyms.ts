@@ -3,12 +3,12 @@ import { shuffle, sampleSize } from "lodash";
 import { FactDb } from "./storageServer";
 import { ebisu, EbisuObject } from "./ebisu";
 import { furiganaStringToReading, parseMarkdownLinkRuby, furiganaStringToPlain, Furigana, Ruby } from "./ruby";
-import { cachedUrlFetch,elapsedHours, all, concatMap } from "./utils";
+import { cachedUrlFetch, elapsedHours, all, concatMap } from "./utils";
 
 const RUBY_START = '- Ruby: ';
 
-async function urlToFuriganas(url: string, local:string): Promise<Array<Furigana[]>> {
-    var text: string = await cachedUrlFetch(url,local);
+async function urlToFuriganas(url: string, local: string): Promise<Array<Furigana[]>> {
+    var text: string = await cachedUrlFetch(url, local);
     var rubyLines: string[] = text.split('\n').filter(s => s.indexOf(RUBY_START) === 0).map(s => s.slice(RUBY_START.length));
     var furiganas = rubyLines.map(parseMarkdownLinkRuby);
     return furiganas;
@@ -30,10 +30,10 @@ const buryForever = ebisu.defaultModel(Infinity);
 const allFactsProm: Promise<Array<Furigana[]>> = urlToFuriganas(TOPONYMS_URL, TOPONYMS_LOCAL);
 const availableFactIdsProm: Promise<Set<string>> = allFactsProm.then(allFacts => new Set(concatMap(allFacts, furiganaFactToFactIds)));
 let submit;
-let prompt : () => Promise<string>;
+let prompt: () => Promise<string>;
 
 function setup(externalSubmitFunction: (user: string, docId: string, factId: string, ebisuObject: EbisuObject, updateObject) => void,
-    externaPromptFunction: ()=>Promise<string>): void {
+    externaPromptFunction: () => Promise<string>): void {
     submit = externalSubmitFunction;
     prompt = externaPromptFunction;
 }

@@ -2,7 +2,7 @@ const shoe = require('shoe');
 const multilevel = require('multilevel');
 const db = multilevel.client();
 
-const stream = shoe('/api/ml', function () {
+const stream = shoe('/api/ml', function() {
     console.log("Connected.");
 });
 stream.pipe(db.createRpcStream()).pipe(stream);
@@ -49,6 +49,6 @@ Array.from(docid2module.values()).forEach(factdb => factdb.setup(submit, prompt)
 // }
 // loop();
 
-async function prompt():Promise<string> {
+async function prompt(): Promise<string> {
     return (document.getElementById('prompt') as HTMLInputElement).value;
 }
