@@ -21,7 +21,10 @@ import { toponyms } from "./toponyms";
 import { tono5k } from "./tono5k";
 let docid2module: Map<string, FactDb> = new Map([["toponyms", toponyms], ["tono5k", tono5k]]);
 
-Array.from(docid2module.values()).forEach(factdb => factdb.setup(submit, prompt));
+async function webSubmit(user: string, docId: string, factId: string, ebisuObject: EbisuObject, updateObject: any) {
+    return submit(db, user, docId, factId, ebisuObject, updateObject);
+}
+Array.from(docid2module.values()).forEach(factdb => factdb.setup(webSubmit, prompt));
 
 // async function loop(SOLE_DOCID: string = '', probThreshold: number = 0.5) {
 //     const levelOpts = makeLeveldbOpts(USER, SOLE_DOCID);

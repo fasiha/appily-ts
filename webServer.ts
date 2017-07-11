@@ -1,5 +1,5 @@
 import levelup = require('levelup');
-import { makeShoeInit } from "./storageServer";
+import { makeShoeInit, db } from "./storageServer";
 
 const express = require('express');
 const shoe = require('shoe');
