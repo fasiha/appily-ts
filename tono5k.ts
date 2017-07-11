@@ -2,7 +2,7 @@ import { shuffle, sampleSize } from "lodash";
 
 import { FactDb } from "./storageServer";
 import { ebisu, EbisuObject } from "./ebisu";
-import { cachedUrlFetch, dedupeViaSets, endsWith, elapsedHours, all, any, concatMap } from "./utils";
+import { uncachedUrlFetch, dedupeViaSets, endsWith, elapsedHours, all, any, concatMap } from "./utils";
 import { furiganaStringToPlain, parseJmdictFurigana } from "./ruby";
 
 const TONO_URL = "https://raw.githubusercontent.com/fasiha/tono-yamazaki-maekawa/master/tono.json";
@@ -39,7 +39,7 @@ interface Tono {
 }
 
 async function urlToFacts(url: string, local: string): Promise<Tono[]> {
-    let json: Tono[] = JSON.parse(await cachedUrlFetch(url, local));
+    let json: Tono[] = JSON.parse(await uncachedUrlFetch(url));
     return json.map(tono => {
         tono.kanjis = dedupeViaSets(tono.kanjis.map(k => furiganaStringToPlain(parseJmdictFurigana(k))));
         return tono;
