@@ -2,6 +2,9 @@ const shoe = require('shoe');
 const multilevel = require('multilevel');
 const db = multilevel.client();
 
+import bluebird = require('bluebird');
+bluebird.promisifyAll(db);
+
 const stream = shoe('/api/ml', function() {
     console.log("Connected.");
 });
@@ -53,10 +56,9 @@ async function loop(SOLE_DOCID: string = '', probThreshold: number = 0.5) {
 loop();
 
 async function webprompt(): Promise<string> {
-    return (document.getElementById('prompt') as HTMLInputElement).value;
+    let ret: string = null;
+    while (!ret) {
+        ret = prompt('Answer:');
+    }
+    return ret;
 }
-
-function boopHandler(e:MouseEvent) {
-    webprompt().then(x=>console.log(x));
-}
-// document.getElementById('boop-button').onclick(boopHandler as any);
