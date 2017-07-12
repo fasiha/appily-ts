@@ -56,9 +56,10 @@ async function loop(SOLE_DOCID: string = '', probThreshold: number = 0.5) {
 loop();
 
 async function webprompt(): Promise<string> {
-    let ret: string = null;
-    while (!ret) {
-        ret = prompt('Answer:');
-    }
-    return ret;
+    return new Promise((resolve, reject) => {
+        (document.querySelector('button#accept-button') as HTMLElement).onclick = e => {
+            resolve((document.querySelector('#prompt') as HTMLInputElement).value);
+        };
+    }) as Promise<string>;
 }
+
