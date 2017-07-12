@@ -74,6 +74,6 @@ export async function cachedUrlFetch(url: string, loc: string): Promise<string> 
     return ret;
 }
 
-export async function uncachedUrlFetch(url:string) {
+export async function uncachedUrlFetch(url: string) {
     return (await fetch(url)).text();
 }
