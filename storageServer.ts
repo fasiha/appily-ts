@@ -1,5 +1,7 @@
-import { EbisuObject } from "./ebisu";
+import { ebisu, EbisuObject } from "./ebisu";
 import levelup = require("levelup");
+import Kefir = require("kefir");
+import { elapsedHours } from "./utils";
 
 export interface FactUpdate {
     user: string;
@@ -11,15 +13,6 @@ export interface FactUpdate {
 }
 
 type Db = levelup.LevelUpBase<levelup.Batch>;
-type SubmitFunction = (user: string, docId: string, factId: string, ebisuObject: EbisuObject, updateObject: any) => Promise<void>;
-type PromptFunction = () => Promise<string>;
-export interface FactDb {
-    setup: (submit: SubmitFunction, prompt: PromptFunction) => void;
-    administerQuiz: (USER: string, DOCID: string, factId: string, allUpdates: FactUpdate[]) => Promise<void>;
-    findAndLearn: (USER: string, DOCID: string, knownFactIds: string[]) => Promise<void>;
-    stripFactIdOfSubfact: (factId: string) => string;
-}
-
 interface KeyVal { key: string, value: string };
 
 function createFactUpdateKey(user: string, docId: string, factId: string, createdAt: Date): string {
@@ -36,8 +29,6 @@ export async function submit(db: Db, user: string, docId: string, factId: string
         console.error("Error", e);
     }
 }
-
-import Kefir = require("kefir");
 
 export function leveldbToStream(db: Db, opts?: any): Kefir.Stream<KeyVal, any> {
     var levelStream = db.createReadStream(opts);
@@ -104,7 +95,6 @@ export function collectKefirStream<T>(s: Kefir.Stream<T, any>): Promise<T[]> {
         .toPromise();
 }
 
-import { ebisu } from "./ebisu";
 export function getMostForgottenFact(db: Db, opts: any = {}): Kefir.Stream<[FactUpdate, number], any> {
     const dnow = new Date();
     const elapsedHours = (d: Date) => ((dnow as any) - (d as any)) / 3600e3 as number;
@@ -148,4 +138,31 @@ export function printDb(db: Db): void {
 const multilevel = require('multilevel');
 export function makeShoeInit(db: Db) {
     return (function(stream) { stream.pipe(multilevel.server(db)).pipe(stream); });
-} 
+}
+
+//
+
+interface DoneQuizzingInfo {
+    result: boolean;
+    wasActiveRecall?: boolean;
+}
+export async function doneQuizzing(db: Db, USER: string, DOCID: string, factId: string, allUpdates: FactUpdate[], info: DoneQuizzingInfo): Promise<void> {
+    for (let u of allUpdates) {
+        if (u.factId === factId) {
+            // active update
+            info.wasActiveRecall = true;
+            let newEbisu = ebisu.updateRecall(u.ebisuObject, info.result, elapsedHours(new Date(u.createdAt)));
+            await submit(db, USER, DOCID, factId, newEbisu, info);
+        } else {
+            // passive update: update the timestamp, keep the ebisu prior the same.
+            info.wasActiveRecall = false;
+            await submit(db, USER, DOCID, u.factId, u.ebisuObject, info);
+        }
+    }
+}
+
+export interface FactDb {
+    whatToLearn: (USER: string, DOCID: string, knownFactIds: string[]) => Promise<any>;
+    howToQuiz: (USER: string, DOCID: string, factId: string, allUpdates: FactUpdate[]) => Promise<any>
+    stripFactIdOfSubfact: (factId: string) => string;
+}
