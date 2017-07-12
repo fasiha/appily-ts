@@ -4,7 +4,7 @@ import {
 } from "./storageServer";
 import { db } from "./diskDb";
 import { ebisu, EbisuObject } from "./ebisu";
-import { prompt, elapsedHours } from "./utils";
+import { cliPrompt, elapsedHours } from "./utils";
 import { FactDbCli } from "./cliInterface";
 
 let USER = "ammy";

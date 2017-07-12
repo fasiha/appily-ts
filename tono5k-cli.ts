@@ -1,6 +1,6 @@
 import { FactUpdate, FactDb, doneQuizzing } from "./storageServer";
 import { EbisuObject, ebisu } from "./ebisu";
-import { prompt, endsWith, elapsedHours } from "./utils";
+import { cliPrompt, endsWith, elapsedHours } from "./utils";
 import { Tono, HowToQuizInfo, howToQuiz, whatToLearn, factToFactIds, stripFactIdOfSubfact } from "./tono5k";
 import { FactDbCli, SubmitFunction } from "./cliInterface";
 
@@ -21,7 +21,7 @@ export async function findAndLearn(submit: SubmitFunction, USER: string, DOCID: 
         }
         console.log('Hit Enter when you got it. (Control-C to quit without committing to learn this.)');
         const start = new Date();
-        const typed = await prompt();
+        const typed = await cliPrompt();
         const factIds = factToFactIds(fact);
         factIds.forEach(factId => submit(USER, DOCID, factId, newlyLearned, { firstLearned: true, hoursWaited: elapsedHours(start) }));
     } else {
@@ -57,7 +57,7 @@ export async function administerQuiz(db, USER: string, DOCID: string, factId: st
             quiz.confusers.forEach((fact, idx) => console.log(`${alpha[idx]}. ${fact.meaning}`));
         }
 
-        const responseText = await prompt();
+        const responseText = await cliPrompt();
         const responseIdx = alpha.indexOf(responseText.toUpperCase());
         if (responseIdx < 0 || responseIdx >= quiz.confusers.length) {
             console.log('Ummm… you ok?');
@@ -76,7 +76,7 @@ export async function administerQuiz(db, USER: string, DOCID: string, factId: st
         } else {
             console.log(`What’s the reading for: 「${fact.meaning}」?`);
         }
-        let responseText = await prompt();
+        let responseText = await cliPrompt();
         result = fact.readings.indexOf(responseText) >= 0;
         info = { result, response: responseText };
     }

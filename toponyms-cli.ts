@@ -1,6 +1,6 @@
 import { FactUpdate, FactDb, doneQuizzing } from "./storageServer";
 import { EbisuObject, ebisu } from "./ebisu";
-import { prompt, endsWith, elapsedHours } from "./utils";
+import { cliPrompt, endsWith, elapsedHours } from "./utils";
 import { furiganaStringToReading, parseMarkdownLinkRuby, furiganaStringToPlain, Furigana, Ruby } from "./ruby";
 import { WEB_URL, Fact, HowToQuizInfo, howToQuiz, whatToLearn, factToFactIds, stripFactIdOfSubfact } from "./toponyms";
 import { FactDbCli, SubmitFunction } from "./cliInterface";
@@ -27,7 +27,7 @@ async function findAndLearn(submit: SubmitFunction, USER: string, DOCID: string,
             .map((f: Ruby) => f.ruby).join('')));
         console.log('Hit Enter when you got it. (Control-C to quit without committing to learn this.)');
         var start = new Date();
-        var typed = await prompt();
+        var typed = await cliPrompt();
         factIds.forEach(factId => submit(USER, DOCID, factId, newlyLearned, { firstLearned: true, hoursWaited: elapsedHours(start) }));
     } else {
         console.log(`No new facts to learn. Go outside and play!`)
@@ -49,7 +49,7 @@ async function administerQuiz(db: any, USER: string, DOCID: string, factId: stri
         console.log(`What’s the kanji for: ${furiganaStringToReading(fact)}?`);
         confusers.forEach((fact, idx: number) => console.log(`${alpha[idx]}. ${furiganaStringToPlain(fact)}`));
 
-        let responseText = await prompt();
+        let responseText = await cliPrompt();
 
         let responseIdx = alpha.indexOf(responseText.toUpperCase());
         if (responseIdx < 0 || responseIdx >= confusers.length) {
@@ -64,7 +64,7 @@ async function administerQuiz(db: any, USER: string, DOCID: string, factId: stri
         };
     } else {
         console.log(`What’s the reading for: ${furiganaStringToPlain(fact)}`);
-        let responseText = await prompt();
+        let responseText = await cliPrompt();
         result = responseText === furiganaStringToReading(fact);
         info = { result, response: responseText };
     }

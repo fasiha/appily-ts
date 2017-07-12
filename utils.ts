@@ -13,7 +13,7 @@ export function any(arr: boolean[]) { return arr.reduce((prev, curr) => prev || 
 
 export function all(arr: boolean[]) { return arr.reduce((prev, curr) => prev && curr, true); }
 
-export function prompt(): Promise<string> {
+export function cliPrompt(): Promise<string> {
     return new Promise((resolve, reject) => {
         var stdin = process.stdin,
             stdout = process.stdout;
