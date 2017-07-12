@@ -5,23 +5,15 @@ import {
 import { db } from "./diskDb";
 import { ebisu, EbisuObject } from "./ebisu";
 import { prompt, elapsedHours } from "./utils";
+import { FactDbCli } from "./cliInterface";
 
 let USER = "ammy";
 
 // Import all FactDb-implementing modules, then add them to the docid2module map!
-import { toponyms } from "./toponyms";
+import { toponymsCli } from "./toponyms-cli";
 import { tono5kCli } from "./tono5k-cli";
-let docid2module: Map<string, FactDbCli> = new Map([/*["toponyms", toponyms],*/["tono5k", tono5kCli]]);
+let docid2module: Map<string, FactDbCli> = new Map([["toponyms", toponymsCli], ["tono5k", tono5kCli]]);
 
-collectKefirStream(getKnownFactIds(db)).then(x => console.log(x))
-
-export interface FactDbCli {
-    administerQuiz: (db, USER: string, docId: string, factId: string, allRelatedUpdates: FactUpdate[]) => Promise<void>;
-    stripFactIdOfSubfact: (factId: string) => string;
-    findAndLearn: (submit: SubmitFunction, USER: string, DOCID: string, knownFactIds: string[]) => Promise<void>;
-}
-
-type SubmitFunction = (user: string, docId: string, factId: string, ebisuObject: EbisuObject, updateObject: any) => Promise<void>;
 async function cliSubmit(user: string, docId: string, factId: string, ebisuObject: EbisuObject, updateObject: any) {
     return submit(db, user, docId, factId, ebisuObject, updateObject);
 }

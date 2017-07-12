@@ -2,13 +2,14 @@ import { FactUpdate, FactDb, doneQuizzing } from "./storageServer";
 import { EbisuObject, ebisu } from "./ebisu";
 import { prompt, endsWith, elapsedHours } from "./utils";
 import { Tono, HowToQuizInfo, howToQuiz, whatToLearn, factToFactIds, stripFactIdOfSubfact } from "./tono5k";
+import { FactDbCli, SubmitFunction } from "./cliInterface";
 
 const newlyLearned = ebisu.defaultModel(0.25, 2.5);
 const buryForever = ebisu.defaultModel(Infinity);
 
-export const tono5kCli = { administerQuiz, findAndLearn, stripFactIdOfSubfact };
+export const tono5kCli: FactDbCli = { administerQuiz, findAndLearn, stripFactIdOfSubfact };
 
-export async function findAndLearn(submit: any, USER: string, DOCID: string, knownFactIds: string[]): Promise<void> {
+export async function findAndLearn(submit: SubmitFunction, USER: string, DOCID: string, knownFactIds: string[]): Promise<void> {
     let fact: Tono = await whatToLearn(USER, DOCID, knownFactIds);
 
     if (fact) {
