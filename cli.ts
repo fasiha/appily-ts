@@ -45,7 +45,7 @@ async function loop(SOLE_DOCID: string = '', probThreshold: number = 0.5) {
 
 if (require.main === module) {
     if (process.argv.length <= 2) {
-        loop('', .1);
+        loop();
     } else {
         let t = process.argv[2];
         if (docid2module.has(t)) {
