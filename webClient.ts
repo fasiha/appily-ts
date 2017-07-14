@@ -1,6 +1,8 @@
+type Db = any;
+
 const shoe = require('shoe');
 const multilevel = require('multilevel');
-const db = multilevel.client();
+const db: Db = multilevel.client();
 
 import bluebird = require('bluebird');
 bluebird.promisifyAll(db);
@@ -82,6 +84,13 @@ async function howToQuiz(db, USER, SOLE_DOCID): Promise<HowToQuizInfo> {
     return null;
 }
 
+type SomeFact = any;
+async function whatToLearn(db, USER: string, DOCID: string): Promise<SomeFact> {
+    const knownFactIds: string[] = await collectKefirStream(getKnownFactIds(db, makeLeveldbOpts(USER, DOCID)));
+    const fact = tono5k.whatToLearn(USER, DOCID, knownFactIds);
+    return fact;
+}
+
 import xs from 'xstream';
 import { MemoryStream } from 'xstream';
 import { run } from '@cycle/run';
@@ -94,13 +103,19 @@ function main(sources) {
 
     const levelOpts = makeLeveldbOpts(USER);
 
-    const riskiest$ = action$.map(x => xs.fromPromise(howToQuiz(db, USER, '')))
+    const quiz$ = action$.map(_ => xs.fromPromise(howToQuiz(db, USER, '')))
         .flatten()
         .startWith(null) as MemoryStream<HowToQuizInfo>;
 
+    const fact$ = quiz$
+        .filter(q => !q)
+        .map(_ => xs.fromPromise(whatToLearn(db, USER, '')))
+        .flatten().
+        startWith(null) as MemoryStream<SomeFact>;
+
     const count$ = action$.fold((x, y) => x + y, 0);
 
-    const both$ = xs.combine(count$, riskiest$);
+    const both$ = xs.combine(count$, fact$);
     const vdom$ = both$.map(([count, quiz]) =>
         div([
             button('.dec', 'Decrement'),
