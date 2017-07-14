@@ -71,9 +71,10 @@ interface HowToQuizInfo {
     allRelatedUpdates?: FactUpdate[];
     factId?: string;
 };
+const PROB_THRESH = 0.5;
 async function howToQuiz(db, USER, SOLE_DOCID): Promise<HowToQuizInfo> {
     let [update0, prob0]: [FactUpdate, number] = await getMostForgottenFact(db, makeLeveldbOpts(USER, SOLE_DOCID)).toPromise();
-    if (prob0 && prob0 <= 0.5) {
+    if (prob0 && prob0 <= PROB_THRESH) {
         const docId = update0.docId;
         const factdb = docid2module.get(docId);
         const plain0 = factdb.stripFactIdOfSubfact(update0.factId);
@@ -91,10 +92,36 @@ async function whatToLearn(db, USER: string, DOCID: string): Promise<SomeFact> {
     return fact;
 }
 
+import { endsWith, elapsedHours } from "./utils";
+
+function quizToDOM(quiz: HowToQuizInfo): VNode {
+    const factId = quiz.factId;
+    const fact = quiz.quizInfo.fact;
+    let vec = [];
+    if (endsWith(factId, '-kanji') || endsWith(factId, '-meaning')) {
+        if (endsWith(factId, '-kanji')) {
+            let s = `What’s the kanji for: ${fact.readings.join('・')} and meaning 「${fact.meaning}」?`;
+            vec.push(p(s));
+            vec.push(ol(quiz.quizInfo.confusers.map((fact, idx) => li(`${fact.kanjis.join('・')}`))));
+        } else {
+            let s = `What’s the meaning of: ${fact.kanjis.length ? fact.kanjis.join('・') + ', ' : ''}${fact.readings.join('・')}?`;
+            vec.push(p(s));
+            vec.push(ol(quiz.quizInfo.confusers.map((fact, idx) => li(`${fact.meaning}`))));
+        }
+    } else {
+        if (fact.kanjis.length) {
+            vec.push(p(`What’s the reading for: ${fact.kanjis.join('・')}, 「${fact.meaning}」?`));
+        } else {
+            vec.push(p(`What’s the reading for: 「${fact.meaning}」?`));
+        }
+    }
+    return div([p("QUIZ TIME!!!")].concat(vec));
+}
+
 import xs from 'xstream';
 import { MemoryStream } from 'xstream';
 import { run } from '@cycle/run';
-import { div, button, p, makeDOMDriver } from '@cycle/dom';
+import { div, button, p, ol, li, makeDOMDriver, VNode } from '@cycle/dom';
 function main(sources) {
     const action$ = sources.DOM.select('.hit-me').events('click').mapTo(0) as xs<number>;
 
@@ -105,7 +132,7 @@ function main(sources) {
         .startWith(null) as MemoryStream<HowToQuizInfo>;
 
     const fact$ = quiz$
-        .filter(q => q && q.prob > 0)
+        .filter(q => q && q.prob > PROB_THRESH)
         .map(_ => xs.fromPromise(whatToLearn(db, USER, '')))
         .flatten().
         startWith(null) as MemoryStream<SomeFact>;
@@ -114,12 +141,11 @@ function main(sources) {
     const vdom$ = both$.map(([quiz, fact]) =>
         div([
             button('.hit-me', 'Hit me'),
-            quiz ? p(JSON.stringify(quiz)) : null,
+            quiz ? quizToDOM(quiz) : null,
             fact ? p(JSON.stringify(fact)) : null,
             p('hi')
         ])
     );
-
     return {
         DOM: vdom$
     };
