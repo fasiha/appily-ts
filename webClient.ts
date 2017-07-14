@@ -71,7 +71,7 @@ interface HowToQuizInfo {
     allRelatedUpdates?: FactUpdate[];
     factId?: string;
 };
-const PROB_THRESH = 0.5;
+const PROB_THRESH = 0.995;
 async function howToQuiz(db, USER, SOLE_DOCID): Promise<HowToQuizInfo> {
     let [update0, prob0]: [FactUpdate, number] = await getMostForgottenFact(db, makeLeveldbOpts(USER, SOLE_DOCID)).toPromise();
     if (prob0 && prob0 <= PROB_THRESH) {
@@ -102,11 +102,11 @@ function quizToDOM(quiz: HowToQuizInfo): VNode {
         if (endsWith(factId, '-kanji')) {
             let s = `What’s the kanji for: ${fact.readings.join('・')} and meaning 「${fact.meaning}」?`;
             vec.push(p(s));
-            vec.push(ol(quiz.quizInfo.confusers.map((fact, idx) => li(`${fact.kanjis.join('・')}`))));
+            vec.push(ol(quiz.quizInfo.confusers.map((fact, idx) => li([button(`#answer-${idx}.answer`, `${idx + 1}`), span(` ${fact.kanjis.join('・')}`)]))));
         } else {
             let s = `What’s the meaning of: ${fact.kanjis.length ? fact.kanjis.join('・') + ', ' : ''}${fact.readings.join('・')}?`;
             vec.push(p(s));
-            vec.push(ol(quiz.quizInfo.confusers.map((fact, idx) => li(`${fact.meaning}`))));
+            vec.push(ol(quiz.quizInfo.confusers.map((fact, idx) => li([button(`#answer-${idx}.answer`, `${idx + 1}`), span(` ${fact.meaning}`)]))));
         }
     } else {
         if (fact.kanjis.length) {
@@ -121,9 +121,13 @@ function quizToDOM(quiz: HowToQuizInfo): VNode {
 import xs from 'xstream';
 import { MemoryStream } from 'xstream';
 import { run } from '@cycle/run';
-import { div, button, p, ol, li, makeDOMDriver, VNode } from '@cycle/dom';
+import { div, button, p, ol, li, span, makeDOMDriver, VNode } from '@cycle/dom';
 function main(sources) {
     const action$ = sources.DOM.select('.hit-me').events('click').mapTo(0) as xs<number>;
+
+    const answerButton$ = sources.DOM.select('.answer').events('click').map(e => +(e.target.id.split('-')[1]));
+    answerButton$.addListener({ next: e => console.log('ANSWER', e) });
+
 
     const levelOpts = makeLeveldbOpts(USER);
 
