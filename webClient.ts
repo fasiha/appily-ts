@@ -66,10 +66,10 @@ async function webprompt(): Promise<string> {
 
 interface HowToQuizInfo {
     prob: number;
-    quizInfo: any;
     update: FactUpdate;
-    allRelatedUpdates: FactUpdate[];
-    factId: string;
+    quizInfo?: any;
+    allRelatedUpdates?: FactUpdate[];
+    factId?: string;
 };
 async function howToQuiz(db, USER, SOLE_DOCID): Promise<HowToQuizInfo> {
     let [update0, prob0]: [FactUpdate, number] = await getMostForgottenFact(db, makeLeveldbOpts(USER, SOLE_DOCID)).toPromise();
@@ -81,7 +81,7 @@ async function howToQuiz(db, USER, SOLE_DOCID): Promise<HowToQuizInfo> {
         const quizInfo = await factdb.howToQuiz(USER, docId, update0.factId, allRelatedUpdates);
         return { prob: prob0, quizInfo, update: update0, allRelatedUpdates, factId: update0.factId };
     }
-    return null;
+    return { prob: prob0, update: update0 };
 }
 
 type SomeFact = any;
@@ -96,10 +96,7 @@ import { MemoryStream } from 'xstream';
 import { run } from '@cycle/run';
 import { div, button, p, makeDOMDriver } from '@cycle/dom';
 function main(sources) {
-    const action$ = xs.merge(
-        sources.DOM.select('.dec').events('click').mapTo(-1),
-        sources.DOM.select('.inc').events('click').mapTo(+1)
-    ) as xs<number>;
+    const action$ = sources.DOM.select('.hit-me').events('click').mapTo(0) as xs<number>;
 
     const levelOpts = makeLeveldbOpts(USER);
 
@@ -108,20 +105,17 @@ function main(sources) {
         .startWith(null) as MemoryStream<HowToQuizInfo>;
 
     const fact$ = quiz$
-        .filter(q => !q)
+        .filter(q => q && q.prob > 0)
         .map(_ => xs.fromPromise(whatToLearn(db, USER, '')))
         .flatten().
         startWith(null) as MemoryStream<SomeFact>;
 
-    const count$ = action$.fold((x, y) => x + y, 0);
-
-    const both$ = xs.combine(count$, fact$);
-    const vdom$ = both$.map(([count, quiz]) =>
+    const both$ = xs.combine(quiz$, fact$);
+    const vdom$ = both$.map(([quiz, fact]) =>
         div([
-            button('.dec', 'Decrement'),
-            button('.inc', 'Increment'),
-            p('Counter: ' + count),
+            button('.hit-me', 'Hit me'),
             quiz ? p(JSON.stringify(quiz)) : null,
+            fact ? p(JSON.stringify(fact)) : null,
             p('hi')
         ])
     );
