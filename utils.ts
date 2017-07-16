@@ -1,5 +1,6 @@
 import { readFileSync, writeFile } from "fs";
 import fetch from "node-fetch";
+import xs from 'xstream';
 
 export function concatMap<T, U>(arr: T[], f: (x: T) => U[]): U[] {
     let ret = [];
@@ -76,4 +77,16 @@ export async function cachedUrlFetch(url: string, loc: string): Promise<string> 
 
 export async function uncachedUrlFetch(url: string) {
     return (await fetch(url)).text();
+}
+
+export function xstreamToPromise<T>(x: xs<T>): Promise<T[]> {
+    return new Promise((resolve, reject) => {
+        x.fold((acc: T[], t: T) => acc.concat(t instanceof Array ? [t] : t), [])
+            .last()
+            .addListener({
+                next: (final) => resolve(final),
+                error: err => reject(err),
+                complete: () => { }
+            });
+    });
 }

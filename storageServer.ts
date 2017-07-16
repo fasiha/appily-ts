@@ -1,6 +1,8 @@
-import { ebisu, EbisuObject } from "./ebisu";
 import levelup = require("levelup");
-import Kefir = require("kefir");
+// import Kefir = require("kefir");
+import xs from 'xstream';
+
+import { ebisu, EbisuObject } from "./ebisu";
 import { elapsedHours } from "./utils";
 
 export interface FactUpdate {
@@ -30,23 +32,22 @@ export async function submit(db: Db, user: string, docId: string, factId: string
     }
 }
 
-export function leveldbToStream(db: Db, opts?: any): Kefir.Stream<KeyVal, any> {
-    var levelStream = db.createReadStream(opts);
-    // Can't use `Kefir.fromEvents` because that doesn't understand
-    // `close`/`end` events, so the resulting Kefir stream never ends.
-    // This is bad because I need `last` to work.
-    return Kefir.stream(emitter => {
-        levelStream.on("data", data => emitter.emit(data));
-        levelStream.on("close", () => emitter.end());
+function levelStreamToXstream(levelStream) {
+    return xs.create({
+        start: listener => {
+            levelStream.on('data', data => listener.next(data));
+            levelStream.on('close', () => listener.complete());
+        },
+        stop: () => { }
     });
 }
 
-function leveldbToKeyStream(db: Db, opts?: any): Kefir.Stream<string, any> {
-    var levelStream = db.createKeyStream(opts);
-    return Kefir.stream(emitter => {
-        levelStream.on("data", data => emitter.emit(data));
-        levelStream.on("close", () => emitter.end());
-    });
+export function leveldbToKeyStream(db: Db, opts?: any): xs<string> {
+    return levelStreamToXstream(db.createKeyStream(opts)) as xs<string>;
+}
+
+export function leveldbToStream(db: Db, opts?: any): xs<KeyVal> {
+    return levelStreamToXstream(db.createReadStream(opts)) as xs<KeyVal>;
 }
 
 export function makeLeveldbOpts(user: string, docId: string = '', factId: string = '', factIdFragment: boolean = true) {
@@ -79,23 +80,18 @@ export function makeLeveldbOpts(user: string, docId: string = '', factId: string
     return ret(a, b);
 }
 
-export function omitNonlatestUpdates(db: Db, opts: any = {}): Kefir.Stream<FactUpdate, any> {
+import dropRepeats from 'xstream/extra/dropRepeats'
+
+export function omitNonlatestUpdates(db: Db, opts: any = {}): xs<FactUpdate> {
     opts.reverse = true;
 
-    return leveldbToStream(db, opts)
-        .skipDuplicates((a: KeyVal, b: KeyVal) => a.key.split('::')[2] === b.key.split('::')[2])
+    // a, b are KeyVal but xstream gets confused with these types
+    const eq = (a, b) => a.key.split('::')[2] === b.key.split('::')[2];
+    return leveldbToStream(db, opts).compose(dropRepeats(eq))
         .map((x: KeyVal) => JSON.parse(x.value) as FactUpdate);
 }
 
-export function collectKefirStream<T>(s: Kefir.Stream<T, any>): Promise<T[]> {
-    let ret: T[] = [];
-    return s
-        .scan((prev, next) => (prev as any).concat(next), ret as any)
-        .last()
-        .toPromise();
-}
-
-export function getMostForgottenFact(db: Db, opts: any = {}): Kefir.Stream<[FactUpdate, number], any> {
+export function getMostForgottenFact(db: Db, opts: any = {}): xs<[FactUpdate, number]> {
     const dnow = new Date();
     const elapsedHours = (d: Date) => ((dnow as any) - (d as any)) / 3600e3 as number;
     const factUpdateToProb = (f: FactUpdate) => {
@@ -106,8 +102,7 @@ export function getMostForgottenFact(db: Db, opts: any = {}): Kefir.Stream<[Fact
         return 1;
     };
     let orig = omitNonlatestUpdates(db, opts);
-    // @types/kefir spec for `scan` is too narrow, so I need a lot of `any`s here 😢
-    let scanned: Kefir.Stream<[FactUpdate, number], any> = orig.scan(([prev, probPrev]: any, next: FactUpdate): any => {
+    return orig.fold(([prev, probPrev]: [FactUpdate, number], next) => {
         if (!prev) {
             let prob = factUpdateToProb(next);
             return [next, prob];
@@ -115,25 +110,15 @@ export function getMostForgottenFact(db: Db, opts: any = {}): Kefir.Stream<[Fact
         let probNext = factUpdateToProb(next);
         if (probNext < probPrev) { return [next, probNext]; }
         return [prev, probPrev];
-    }, [null, null] as any) as any;
-    return scanned
-        .last();
+    }, [null, null])
+        .last() as xs<[FactUpdate, number]>;
 }
-// var f = mostForgottenFact("ammy"); f.log();
 
 export function getKnownFactIds(db: Db, opts: any = {}) {
     let keys = leveldbToKeyStream(db, opts);
-    return keys.map(s => s.split('::')[2]).skipDuplicates();
+    return keys.map(s => s.split('::')[2]).compose(dropRepeats());
 }
 
-export function printDb(db: Db): void {
-    // Kefir's `log` might produce paragraphs, which is hard to grep, so manual print:
-    leveldbToStream(db).observe({
-        value(value) {
-            console.log('printDb:' + JSON.stringify(value));
-        },
-    });
-}
 
 const multilevel = require('multilevel');
 export function makeShoeInit(db: Db) {

@@ -13,7 +13,7 @@ const stream = shoe('/api/ml', function() {
 stream.pipe(db.createRpcStream()).pipe(stream);
 
 import {
-    FactUpdate, collectKefirStream, getMostForgottenFact, omitNonlatestUpdates, getKnownFactIds,
+    FactUpdate, getMostForgottenFact, omitNonlatestUpdates, getKnownFactIds,
     makeLeveldbOpts, submit, doneQuizzing, FactDb
 } from "./storageServer";
 import { EbisuObject } from "./ebisu";
@@ -40,12 +40,14 @@ interface HowToQuizInfo {
 };
 const PROB_THRESH = 0.995;
 async function howToQuiz(db, USER, SOLE_DOCID): Promise<HowToQuizInfo> {
-    let [update0, prob0]: [FactUpdate, number] = await getMostForgottenFact(db, makeLeveldbOpts(USER, SOLE_DOCID)).toPromise();
+    // let [update0, prob0]: [FactUpdate, number] = await getMostForgottenFact(db, makeLeveldbOpts(USER, SOLE_DOCID)).toPromise();
+    let [update0, prob0]: [FactUpdate, number] = (await xstreamToPromise(getMostForgottenFact(db, makeLeveldbOpts(USER, SOLE_DOCID))))[0];
+
     if (prob0 && prob0 <= PROB_THRESH) {
         const docId = update0.docId;
         const factdb = docid2module.get(docId);
         const plain0 = factdb.stripFactIdOfSubfact(update0.factId);
-        const allRelatedUpdates = await collectKefirStream(omitNonlatestUpdates(db, makeLeveldbOpts(USER, docId, plain0, true)));
+        const allRelatedUpdates = await xstreamToPromise(omitNonlatestUpdates(db, makeLeveldbOpts(USER, docId, plain0, true)));
         const quizInfo = await factdb.howToQuiz(USER, docId, update0.factId, allRelatedUpdates);
         return { prob: prob0, quizInfo, update: update0, allRelatedUpdates, factId: update0.factId, startTime: new Date() };
     }
@@ -54,12 +56,12 @@ async function howToQuiz(db, USER, SOLE_DOCID): Promise<HowToQuizInfo> {
 
 type SomeFact = any;
 async function whatToLearn(db, USER: string, DOCID: string): Promise<SomeFact> {
-    const knownFactIds: string[] = await collectKefirStream(getKnownFactIds(db, makeLeveldbOpts(USER, DOCID)));
+    const knownFactIds: string[] = await xstreamToPromise(getKnownFactIds(db, makeLeveldbOpts(USER, DOCID)));
     const fact = tono5k.whatToLearn(USER, DOCID, knownFactIds);
     return fact;
 }
 
-import { endsWith, elapsedHours } from "./utils";
+import { xstreamToPromise, endsWith, elapsedHours } from "./utils";
 
 function checkAnswer([answer, quiz]: [number, HowToQuizInfo]) {
     let result = quiz.quizInfo.confusers[answer].num === quiz.quizInfo.fact.num;
