@@ -18,6 +18,7 @@ import {
 } from "./storageServer";
 import { EbisuObject } from "./ebisu";
 import { FactDbCli } from "./cliInterface";
+import { xstreamToPromise, endsWith, elapsedHours } from "./utils";
 
 let USER = "ammy";
 
@@ -61,15 +62,18 @@ async function whatToLearn(db, USER: string, DOCID: string): Promise<SomeFact> {
     return fact;
 }
 
-import { xstreamToPromise, endsWith, elapsedHours } from "./utils";
-
-function checkAnswer([answer, quiz]: [number, HowToQuizInfo]) {
-    let result = quiz.quizInfo.confusers[answer].num === quiz.quizInfo.fact.num;
-    let info = {
-        result,
-        response: quiz.quizInfo.confusers[answer].num,
-        confusers: quiz.quizInfo.confusers.map(fact => fact.num),
-        hoursWaited: elapsedHours(quiz.startTime)
+function checkAnswer([answer, quiz]: [number | string, HowToQuizInfo]) {
+    let result;
+    let info: any = { hoursWaited: elapsedHours(quiz.startTime) };
+    if (typeof answer === 'string') {
+        result = quiz.quizInfo.fact.readings.indexOf(answer) >= 0;
+        info.result = result;
+        info.response = answer;
+    } else {
+        result = quiz.quizInfo.confusers[answer].num === quiz.quizInfo.fact.num
+        info.result = result;
+        info.response = quiz.quizInfo.confusers[answer].num;
+        info.confusers = quiz.quizInfo.confusers.map(fact => fact.num);
     };
     console.log('COMMITTING!', info);
     doneQuizzing(db, USER, quiz.update.docId, quiz.factId, quiz.allRelatedUpdates, info);
@@ -96,6 +100,9 @@ function quizToDOM(quiz: HowToQuizInfo): VNode {
         } else {
             vec.push(p(`What’s the reading for: 「${fact.meaning}」?`));
         }
+        vec.push(form('.answer-form', { attrs: { action: 'javascript:void(0);' } },
+            [input('#answer-text', { type: "text", placeholder: "Doo bee doo bee doo" }),
+            button('#answer-submit', 'Submit')]));
     }
     return div([p("QUIZ TIME!!!")].concat(vec));
 }
@@ -103,7 +110,7 @@ function quizToDOM(quiz: HowToQuizInfo): VNode {
 import xs from 'xstream';
 import { MemoryStream } from 'xstream';
 import { run } from '@cycle/run';
-import { div, button, p, ol, li, span, makeDOMDriver, VNode } from '@cycle/dom';
+import { div, button, p, ol, li, span, input, form, makeDOMDriver, VNode } from '@cycle/dom';
 import sampleCombine from 'xstream/extra/sampleCombine'
 
 function main(sources) {
@@ -116,7 +123,11 @@ function main(sources) {
         .startWith(null) as MemoryStream<HowToQuizInfo>;
     const quizDom$ = quiz$.map(quiz => quiz ? quizToDOM(quiz) : null);
 
-    const answerButton$ = sources.DOM.select('.answer').events('click').map(e => +(e.target.id.split('-')[1])) as xs<number>;
+    const answerButton$ = xs.merge(sources.DOM.select('form').events('submit').map(e => {
+        e.preventDefault();
+        return (document.querySelector('#answer-text') as any).value
+    }),
+        sources.DOM.select('button.answer').events('click').map(e => +(e.target.id.split('-')[1]))) as xs<number | string>;
     const questionAnswer$ = answerButton$.compose(sampleCombine(quiz$));
     const questionAnswerDom$ = questionAnswer$.map(checkAnswer);
 
@@ -131,8 +142,7 @@ function main(sources) {
     const vdom$ = all$.map(element => {
         return div([
             button('.hit-me', 'Hit me'),
-            element,
-            p('hi')
+            element
         ]);
     });
     return { DOM: vdom$ };
