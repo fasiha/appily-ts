@@ -71,7 +71,7 @@ function checkAnswer([answer, quiz]: [number, HowToQuizInfo]) {
     };
     console.log('COMMITTING!', info);
     doneQuizzing(db, USER, quiz.update.docId, quiz.factId, quiz.allRelatedUpdates, info);
-    return result;
+    return p(result ? '✅✅✅!' : '❌❌❌');
 }
 
 function quizToDOM(quiz: HowToQuizInfo): VNode {
@@ -112,33 +112,24 @@ function main(sources) {
     const quiz$ = action$.map(_ => xs.fromPromise(howToQuiz(db, USER, '')))
         .flatten()
         .startWith(null) as MemoryStream<HowToQuizInfo>;
+    const quizDom$ = quiz$.map(quiz => quiz ? quizToDOM(quiz) : null);
 
     const answerButton$ = sources.DOM.select('.answer').events('click').map(e => +(e.target.id.split('-')[1])) as xs<number>;
     const questionAnswer$ = answerButton$.compose(sampleCombine(quiz$));
+    const questionAnswerDom$ = questionAnswer$.map(checkAnswer);
 
     const fact$ = quiz$
         .filter(q => q && q.prob > PROB_THRESH)
         .map(_ => xs.fromPromise(whatToLearn(db, USER, '')))
         .flatten().
         startWith(null) as MemoryStream<SomeFact>;
+    const factDom$ = fact$.map(fact => fact ? p(JSON.stringify(fact)) : null);
 
-    const all$ = xs.merge(quiz$, fact$, questionAnswer$);
+    const all$ = xs.merge(quizDom$, factDom$, questionAnswerDom$);
     const vdom$ = all$.map(element => {
-        let custom;
-        if (element && element.prob !== undefined) {
-            // is HowToQuiz
-            custom = quizToDOM(element as HowToQuizInfo)
-        } else if (element && element[1] && element[1].prob !== undefined) {
-            // is answer button
-            let result = checkAnswer(element);
-            custom = p(result ? '✅✅✅!' : '❌❌❌');
-        } else if (element) {
-            // is fact
-            custom = p(JSON.stringify(element));
-        }
         return div([
             button('.hit-me', 'Hit me'),
-            custom,
+            element,
             p('hi')
         ]);
     });
