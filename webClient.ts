@@ -136,7 +136,6 @@ function main(sources) {
 
     const answerButton$ = sources.DOM.select('.answer').events('click').map(e => +(e.target.id.split('-')[1])) as xs<number>;
     const questionAnswer$ = answerButton$.compose(sampleCombine(quiz$));
-    // questionAnswer$.addListener({ next: e => console.log('QA', e) });
 
     const fact$ = quiz$
         .filter(q => q && q.prob > PROB_THRESH)
@@ -144,18 +143,26 @@ function main(sources) {
         .flatten().
         startWith(null) as MemoryStream<SomeFact>;
 
-    const both$ = xs.combine(quiz$, fact$);
-    const vdom$ = both$.map(([quiz, fact]) =>
-        div([
+    const all$ = xs.merge(quiz$, fact$, questionAnswer$);
+    const vdom$ = all$.map(element => {
+        let custom;
+        if (element && element.prob !== undefined) {
+            // is HowToQuiz
+            custom = quizToDOM(element as HowToQuizInfo)
+        } else if (element && element[1] && element[1].prob !== undefined) {
+            // is answer button
+            custom = p(JSON.stringify(element));
+        } else if (element) {
+            // is fact
+            custom = p(JSON.stringify(element));
+        }
+        return div([
             button('.hit-me', 'Hit me'),
-            quiz ? quizToDOM(quiz) : null,
-            fact ? p(JSON.stringify(fact)) : null,
+            custom,
             p('hi')
-        ])
-    );
-    return {
-        DOM: vdom$
-    };
+        ]);
+    });
+    return { DOM: vdom$ };
 }
 
 run(main, {
