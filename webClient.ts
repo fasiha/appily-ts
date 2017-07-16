@@ -70,6 +70,7 @@ interface HowToQuizInfo {
     quizInfo?: any;
     allRelatedUpdates?: FactUpdate[];
     factId?: string;
+    startTime?: Date;
 };
 const PROB_THRESH = 0.995;
 async function howToQuiz(db, USER, SOLE_DOCID): Promise<HowToQuizInfo> {
@@ -80,7 +81,7 @@ async function howToQuiz(db, USER, SOLE_DOCID): Promise<HowToQuizInfo> {
         const plain0 = factdb.stripFactIdOfSubfact(update0.factId);
         const allRelatedUpdates = await collectKefirStream(omitNonlatestUpdates(db, makeLeveldbOpts(USER, docId, plain0, true)));
         const quizInfo = await factdb.howToQuiz(USER, docId, update0.factId, allRelatedUpdates);
-        return { prob: prob0, quizInfo, update: update0, allRelatedUpdates, factId: update0.factId };
+        return { prob: prob0, quizInfo, update: update0, allRelatedUpdates, factId: update0.factId, startTime: new Date() };
     }
     return { prob: prob0, update: update0 };
 }
@@ -122,18 +123,20 @@ import xs from 'xstream';
 import { MemoryStream } from 'xstream';
 import { run } from '@cycle/run';
 import { div, button, p, ol, li, span, makeDOMDriver, VNode } from '@cycle/dom';
+import sampleCombine from 'xstream/extra/sampleCombine'
+
 function main(sources) {
     const action$ = sources.DOM.select('.hit-me').events('click').mapTo(0) as xs<number>;
-
-    const answerButton$ = sources.DOM.select('.answer').events('click').map(e => +(e.target.id.split('-')[1]));
-    answerButton$.addListener({ next: e => console.log('ANSWER', e) });
-
 
     const levelOpts = makeLeveldbOpts(USER);
 
     const quiz$ = action$.map(_ => xs.fromPromise(howToQuiz(db, USER, '')))
         .flatten()
         .startWith(null) as MemoryStream<HowToQuizInfo>;
+
+    const answerButton$ = sources.DOM.select('.answer').events('click').map(e => +(e.target.id.split('-')[1])) as xs<number>;
+    const questionAnswer$ = answerButton$.compose(sampleCombine(quiz$));
+    // questionAnswer$.addListener({ next: e => console.log('QA', e) });
 
     const fact$ = quiz$
         .filter(q => q && q.prob > PROB_THRESH)
