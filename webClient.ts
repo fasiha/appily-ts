@@ -17,7 +17,7 @@ import {
     makeLeveldbOpts, submit, doneQuizzing, FactDb
 } from "./storageServer";
 import { EbisuObject } from "./ebisu";
-import { FactDbCli } from "./cliInterface";
+// import { FactDbCli } from "./cliInterface";
 import { xstreamToPromise, endsWith, elapsedHours } from "./utils";
 
 let USER = "ammy";
@@ -34,14 +34,14 @@ async function webSubmit(user: string, docId: string, factId: string, ebisuObjec
 interface HowToQuizInfo {
     prob: number;
     update: FactUpdate;
+    risky: boolean;
     quizInfo?: any;
     allRelatedUpdates?: FactUpdate[];
     factId?: string;
     startTime?: Date;
 };
-const PROB_THRESH = 0.995;
+const PROB_THRESH = 0.25;
 async function howToQuiz(db, USER, SOLE_DOCID): Promise<HowToQuizInfo> {
-    // let [update0, prob0]: [FactUpdate, number] = await getMostForgottenFact(db, makeLeveldbOpts(USER, SOLE_DOCID)).toPromise();
     let [update0, prob0]: [FactUpdate, number] = (await xstreamToPromise(getMostForgottenFact(db, makeLeveldbOpts(USER, SOLE_DOCID))))[0];
 
     if (prob0 && prob0 <= PROB_THRESH) {
@@ -50,9 +50,9 @@ async function howToQuiz(db, USER, SOLE_DOCID): Promise<HowToQuizInfo> {
         const plain0 = factdb.stripFactIdOfSubfact(update0.factId);
         const allRelatedUpdates = await xstreamToPromise(omitNonlatestUpdates(db, makeLeveldbOpts(USER, docId, plain0, true)));
         const quizInfo = await factdb.howToQuiz(USER, docId, update0.factId, allRelatedUpdates);
-        return { prob: prob0, quizInfo, update: update0, allRelatedUpdates, factId: update0.factId, startTime: new Date() };
+        return { risky: true, prob: prob0, quizInfo, update: update0, allRelatedUpdates, factId: update0.factId, startTime: new Date() };
     }
-    return { prob: prob0, update: update0 };
+    return { risky: false, prob: prob0, update: update0 };
 }
 
 type SomeFact = any;
@@ -100,7 +100,7 @@ function quizToDOM(quiz: HowToQuizInfo): VNode {
         } else {
             vec.push(p(`What’s the reading for: 「${fact.meaning}」?`));
         }
-        vec.push(form('.answer-form', { attrs: { action: 'javascript:void(0);' } },
+        vec.push(form('.answer-form', { attrs: { autocomplete: "off", action: 'javascript:void(0);' } },
             [input('#answer-text', { type: "text", placeholder: "Doo bee doo bee doo" }),
             button('#answer-submit', 'Submit')]));
     }
@@ -121,7 +121,7 @@ function main(sources) {
     const quiz$ = action$.map(_ => xs.fromPromise(howToQuiz(db, USER, '')))
         .flatten()
         .startWith(null) as MemoryStream<HowToQuizInfo>;
-    const quizDom$ = quiz$.map(quiz => quiz ? quizToDOM(quiz) : null);
+    const quizDom$ = quiz$.map(quiz => quiz && quiz.risky ? quizToDOM(quiz) : null);
 
     const answerButton$ = xs.merge(sources.DOM.select('form').events('submit').map(e => {
         e.preventDefault();
@@ -132,7 +132,7 @@ function main(sources) {
     const questionAnswerDom$ = questionAnswer$.map(checkAnswer);
 
     const fact$ = quiz$
-        .filter(q => q && q.prob > PROB_THRESH)
+        .filter(q => q && !q.risky)
         .map(_ => xs.fromPromise(whatToLearn(db, USER, '')))
         .flatten().
         startWith(null) as MemoryStream<SomeFact>;
