@@ -10,9 +10,9 @@ import {
     FactUpdate, getMostForgottenFact, omitNonlatestUpdates, getKnownFactIds,
     makeLeveldbOpts, submit, doneQuizzing, FactDb
 } from "./storageServer";
-import { EbisuObject } from "./ebisu";
+import { EbisuObject, ebisu } from "./ebisu";
 import { xstreamToPromise, endsWith, elapsedHours } from "./utils";
-import { HowToQuizInfo, FactDbCycle } from "./cycleInterfaces";
+import { WhatToLearnInfo, HowToQuizInfo, FactDbCycle } from "./cycleInterfaces";
 
 // Import all FactDb-implementing modules, then add them to the docid2module map!
 import { toponyms } from "./toponyms";
@@ -21,6 +21,7 @@ const docid2module: Map<string, FactDbCycle> = new Map([/*["toponyms", toponyms]
 
 const USER = "ammy";
 const PROB_THRESH = 0.5;
+const newlyLearned = ebisu.defaultModel(0.25, 2.5);
 
 // Database
 
@@ -58,11 +59,19 @@ async function whatToQuiz(db, USER, SOLE_DOCID): Promise<HowToQuizInfo> {
     return { risky: false, prob: prob0, update: update0 };
 }
 
-type SomeFact = any;
-async function whatToLearn(db, USER: string, DOCID: string): Promise<SomeFact> {
-    const knownFactIds: string[] = await xstreamToPromise(getKnownFactIds(db, makeLeveldbOpts(USER, DOCID)));
-    const factsPromises = Array.from(docid2module.values()).map(module => module.whatToLearn(USER, DOCID, knownFactIds))
-    return Promise.all(factsPromises);
+
+async function whatToLearn(db, USER: string, SOLE_DOCID: string): Promise<WhatToLearnInfo> {
+    const knownFactIds: string[] = await xstreamToPromise(getKnownFactIds(db, makeLeveldbOpts(USER, SOLE_DOCID)));
+    let factsPromises: Promise<WhatToLearnInfo>[] = [];
+    for (const [docId, mod] of Array.from(docid2module)) {
+        factsPromises.push(mod.whatToLearn(USER, docId, knownFactIds).then(fact => ({ fact, docId: docId })));
+    }
+    const facts = (await Promise.all(factsPromises)).filter(x => !!x);
+    return facts.length ? facts[0] : null;
+}
+
+async function doneLearning(USER, DOCID, fact) {
+    docid2module.get(DOCID).factToFactIds(fact).forEach(factId => webSubmit(USER, DOCID, factId, newlyLearned, { firstLearned: true }));
 }
 
 function main(sources) {
@@ -87,10 +96,14 @@ function main(sources) {
         .filter(q => q && !q.risky)
         .map(_ => xs.fromPromise(whatToLearn(db, USER, '')))
         .flatten().
-        startWith(null) as MemoryStream<SomeFact>;
-    const factDom$ = fact$.map(facts => facts ? p(JSON.stringify(facts)) : null);
+        startWith(null) as MemoryStream<WhatToLearnInfo>;
+    const factDom$ = fact$.map(fact => fact ? docid2module.get(fact.docId).newFactToDom(fact) : null);
+    const learnedFact$ = sources.DOM.select('button#learned-button').events('click').compose(sampleCombine(fact$)).map(([_, fact]) => fact) as xs<WhatToLearnInfo>;
+    learnedFact$.addListener({ next: fact => doneLearning(USER, fact.docId, fact.fact) });
 
-    const all$ = xs.merge(quizDom$, factDom$, questionAnswerDom$);
+    const learnedFactDom$ = learnedFact$.map(fact => p("Great!"));
+
+    const all$ = xs.merge(quizDom$, factDom$, questionAnswerDom$, learnedFactDom$);
     const vdom$ = all$.map(element => {
         return div([
             button('.hit-me', 'Hit me'),

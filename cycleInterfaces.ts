@@ -18,4 +18,11 @@ export interface FactDbCycle {
     quizToDOM: (quiz: HowToQuizInfo) => VNode;
     howToQuiz: (USER: string, DOCID: string, factId: string, allUpdates: FactUpdate[]) => Promise<HowToQuizInfo>
     stripFactIdOfSubfact: (factId: string) => string;
+    newFactToDom: (fact: any) => VNode;
+    factToFactIds: (fact: any) => string[];
 };
+
+export interface WhatToLearnInfo {
+    fact: any;
+    docId: string;
+}

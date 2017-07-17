@@ -1,10 +1,10 @@
-import { tono5k } from "./tono5k";
+import { tono5k, Tono, factToFactIds } from "./tono5k";
 import { xstreamToPromise, endsWith, elapsedHours } from "./utils";
 import {
     FactUpdate, getMostForgottenFact, omitNonlatestUpdates, getKnownFactIds,
     makeLeveldbOpts, submit, doneQuizzing, FactDb
 } from "./storageServer";
-import { HowToQuizInfo, FactDbCycle } from "./cycleInterfaces";
+import { HowToQuizInfo, FactDbCycle, WhatToLearnInfo } from "./cycleInterfaces";
 
 import xs from 'xstream';
 import { MemoryStream } from 'xstream';
@@ -17,7 +17,7 @@ const whatToLearn = tono5k.whatToLearn;
 const howToQuiz = tono5k.howToQuiz;
 const stripFactIdOfSubfact = tono5k.stripFactIdOfSubfact;
 
-export const tono5kCyclejs: FactDbCycle = { howToQuiz, checkAnswer, quizToDOM, whatToLearn, stripFactIdOfSubfact };
+export const tono5kCyclejs: FactDbCycle = { howToQuiz, checkAnswer, quizToDOM, whatToLearn, stripFactIdOfSubfact, newFactToDom, factToFactIds };
 
 function quizToDOM(quiz: HowToQuizInfo): VNode {
     const factId = quiz.factId;
@@ -66,3 +66,8 @@ function checkAnswer(db, USER: string, [answer, quiz]: [number | string, HowToQu
     return p(result ? '✅✅✅!' : '❌❌❌');
 }
 
+function newFactToDom(fact: WhatToLearnInfo): VNode {
+    if (!fact) { return null; }
+    return div([p("Hey! Learn this: " + JSON.stringify(fact.fact)),
+    button("#learned-button", "Learned!")]);
+}
