@@ -79,6 +79,7 @@ function main(sources) {
 
     const levelOpts = makeLeveldbOpts(USER);
 
+
     const quiz$ = action$.map(_ => xs.fromPromise(whatToQuiz(db, USER, '')))
         .flatten()
         .startWith(null) as MemoryStream<HowToQuizInfo>;
@@ -91,6 +92,8 @@ function main(sources) {
         sources.DOM.select('button.answer').events('click').map(e => +(e.target.id.split('-')[1]))) as xs<number | string>;
     const questionAnswer$ = answerButton$.compose(sampleCombine(quiz$));
     const questionAnswerDom$ = questionAnswer$.map(([ans, quiz]) => docid2module.get(quiz.update.docId).checkAnswer(db, USER, [ans, quiz]));
+    const quizAllDom$ = xs.merge(questionAnswerDom$, quizDom$);
+
 
     const fact$ = quiz$
         .filter(q => q && !q.risky)
@@ -100,10 +103,10 @@ function main(sources) {
     const factDom$ = fact$.map(fact => fact ? docid2module.get(fact.docId).newFactToDom(fact) : null);
     const learnedFact$ = sources.DOM.select('button#learned-button').events('click').compose(sampleCombine(fact$)).map(([_, fact]) => fact) as xs<WhatToLearnInfo>;
     learnedFact$.addListener({ next: fact => doneLearning(USER, fact.docId, fact.fact) });
-
     const learnedFactDom$ = learnedFact$.map(fact => p("Great!"));
+    const learnAllDom$ = xs.merge(factDom$, learnedFactDom$);
 
-    const all$ = xs.merge(quizDom$, factDom$, questionAnswerDom$, learnedFactDom$);
+    const all$ = xs.merge(learnAllDom$, quizAllDom$);
     const vdom$ = all$.map(element => {
         return div([
             button('.hit-me', 'Hit me'),
