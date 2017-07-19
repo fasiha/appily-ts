@@ -2,6 +2,7 @@ import bluebird = require('bluebird');
 
 import xs from 'xstream';
 import { MemoryStream } from 'xstream';
+import isolate from '@cycle/isolate';
 import { run } from '@cycle/run';
 import { div, button, p, ol, li, span, input, form, makeDOMDriver, VNode } from '@cycle/dom';
 import sampleCombine from 'xstream/extra/sampleCombine'
@@ -17,7 +18,6 @@ import { WhatToLearnInfo, WhatToQuizInfo, FactDbCycle } from "./cycleInterfaces"
 // Import all FactDb-implementing modules, then add them to the docid2module map!
 import { toponymsCyclejs } from "./toponyms-cyclejs";
 import { tono5kCyclejs } from "./tono5k-cyclejs";
-// const docid2module: Map<string, FactDbCycle> = new Map([["toponyms", toponymsCyclejs]]);
 const docid2module: Map<string, FactDbCycle> = new Map([["toponyms", toponymsCyclejs], ["tono5k", tono5kCyclejs]]);
 
 const USER = "ammy";
@@ -76,7 +76,7 @@ function main(sources) {
 
     const levelOpts = makeLeveldbOpts(USER);
 
-    const quiz$ = action$.map(_ => xs.fromPromise(whatToQuiz(db, USER, 'toponyms')))
+    const quiz$ = action$.map(_ => xs.fromPromise(whatToQuiz(db, USER, '')))
         .flatten()
         .remember() as MemoryStream<WhatToQuizInfo>;
     // quiz$.addListener({ next: x => console.log('quiz', x) })
@@ -90,7 +90,11 @@ function main(sources) {
     }
 
     const sinks = Array.from(docid2module.entries()).map(([docId, mod]) => {
-        const all = mod.makeDOMStream({ DOM: sources.DOM, quiz: quiz$.filter(quiz => quiz && quiz.docId === docId), known: docIdModToKnownStream(docId, mod) })
+        const all = isolate(mod.makeDOMStream)({
+            DOM: sources.DOM,
+            quiz: quiz$.filter(quiz => quiz && quiz.docId === docId),
+            known: docIdModToKnownStream(docId, mod)
+        });
         all.learned.addListener({ next: fact => doneLearning(USER, docId, fact) });
         all.quizzed.addListener({ next: ([ans, quiz, info]) => webDoneQuizzing(quiz.update.docId, quiz.factId, quiz.allRelatedUpdates, info) })
         return all;

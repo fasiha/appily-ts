@@ -8,7 +8,6 @@ import { run } from '@cycle/run';
 import { div, button, p, ol, li, span, input, form, makeDOMDriver, VNode } from '@cycle/dom';
 import sampleCombine from 'xstream/extra/sampleCombine'
 
-
 export const tono5kCyclejs: FactDbCycle = {
     makeDOMStream,
     stripFactIdOfSubfact: tono5k.stripFactIdOfSubfact,
@@ -60,7 +59,7 @@ function checkAnswer([answer, quiz]: [number | string, WhatToQuizInfo]) {
         info.response = quizInfo.confusers[answer].num;
         info.confusers = quizInfo.confusers.map(fact => fact.num);
     };
-    console.log('COMMITTING!', info);
+    // console.log('COMMITTING!', info);
     return { DOM: p(result ? '✅✅✅!' : '❌❌❌'), sink: [answer, quiz, info] };
 }
 

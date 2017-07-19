@@ -53,7 +53,7 @@ function checkAnswer([answer, quiz]: [number | string, WhatToQuizInfo]) {
         info.response = furiganaStringToPlain(quizInfo.confusers[answer]);
         info.confusers = quizInfo.confusers.map(furiganaStringToPlain);
     };
-    console.log('COMMITTING!', info);
+    // console.log('COMMITTING!', info);
     return { DOM: p(result ? '✅✅✅!' : '❌❌❌'), sink: [answer, quiz, info] };
 }
 
@@ -78,11 +78,9 @@ function makeDOMStream(sources: CycleSources): CycleSinks {
     const answerButton$ = xs.merge(sources.DOM.select('form').events('submit').map(e => {
         e.preventDefault();
         var node = (document.querySelector('#answer-text') as any);
-        console.log('topo', node)
-
         return node ? node.value : null;
     }).filter(x => x !== null),
-        sources.DOM.select('button.answer').events('click').map(e => +(e.target.id.split('-')[1]))) 　as xs<number | string>;
+        sources.DOM.select('button.answer').events('click').map(e => +(e.target.id.split('-')[1]))) as xs<number | string>;
     const questionAnswer$ = answerButton$.compose(sampleCombine(quiz$));
     const questionAnswerResult$ = questionAnswer$/*.filter(([ans, quiz] )=> !!quiz)*/.map(([ans, quiz]) => checkAnswer([ans, quiz]));
     const questionAnswerSink$ = questionAnswerResult$.map(o => o.sink);
