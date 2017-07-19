@@ -1,10 +1,10 @@
-import { tono5k, Tono, factToFactIds } from "./tono5k";
+import { tono5k, Tono } from "./tono5k";
 import { xstreamToPromise, endsWith, elapsedHours } from "./utils";
 import {
     FactUpdate, getMostForgottenFact, omitNonlatestUpdates, getKnownFactIds,
     makeLeveldbOpts, submit, doneQuizzing, FactDb
 } from "./storageServer";
-import { HowToQuizInfo, FactDbCycle, WhatToLearnInfo } from "./cycleInterfaces";
+import { WhatToQuizInfo, FactDbCycle, WhatToLearnInfo } from "./cycleInterfaces";
 
 import xs from 'xstream';
 import { MemoryStream } from 'xstream';
@@ -17,21 +17,23 @@ const whatToLearn = tono5k.whatToLearn;
 const howToQuiz = tono5k.howToQuiz;
 const stripFactIdOfSubfact = tono5k.stripFactIdOfSubfact;
 
-export const tono5kCyclejs: FactDbCycle = { howToQuiz, checkAnswer, quizToDOM, whatToLearn, stripFactIdOfSubfact, newFactToDom, factToFactIds };
+export const tono5kCyclejs: FactDbCycle = { makeDOMStream, stripFactIdOfSubfact, factToFactIds: tono5k.factToFactIds };
 
-function quizToDOM(quiz: HowToQuizInfo): VNode {
+function quizToDOM(quiz: WhatToQuizInfo): VNode {
     const factId = quiz.factId;
-    const fact = quiz.quizInfo.fact;
+    // const quizInfo = await tono5k.howToQuiz(factId);
+    const quizInfo = quiz.quizInfo;
+    const fact = quizInfo.fact;
     let vec = [];
     if (endsWith(factId, '-kanji') || endsWith(factId, '-meaning')) {
         if (endsWith(factId, '-kanji')) {
             let s = `What’s the kanji for: ${fact.readings.join('・')} and meaning 「${fact.meaning}」?`;
             vec.push(p(s));
-            vec.push(ol(quiz.quizInfo.confusers.map((fact, idx) => li([button(`#answer-${idx}.answer`, `${idx + 1}`), span(` ${fact.kanjis.join('・')}`)]))));
+            vec.push(ol(quizInfo.confusers.map((fact, idx) => li([button(`#answer-${idx}.answer`, `${idx + 1}`), span(` ${fact.kanjis.join('・')}`)]))));
         } else {
             let s = `What’s the meaning of: ${fact.kanjis.length ? fact.kanjis.join('・') + ', ' : ''}${fact.readings.join('・')}?`;
             vec.push(p(s));
-            vec.push(ol(quiz.quizInfo.confusers.map((fact, idx) => li([button(`#answer-${idx}.answer`, `${idx + 1}`), span(` ${fact.meaning}`)]))));
+            vec.push(ol(quizInfo.confusers.map((fact, idx) => li([button(`#answer-${idx}.answer`, `${idx + 1}`), span(` ${fact.meaning}`)]))));
         }
     } else {
         if (fact.kanjis.length) {
@@ -48,7 +50,7 @@ function quizToDOM(quiz: HowToQuizInfo): VNode {
 
 
 
-function checkAnswer(db, USER: string, [answer, quiz]: [number | string, HowToQuizInfo]): VNode {
+function checkAnswer([answer, quiz]: [number | string, WhatToQuizInfo]) {
     let result;
     let info: any = { hoursWaited: elapsedHours(quiz.startTime) };
     if (typeof answer === 'string') {
@@ -62,12 +64,47 @@ function checkAnswer(db, USER: string, [answer, quiz]: [number | string, HowToQu
         info.confusers = quiz.quizInfo.confusers.map(fact => fact.num);
     };
     console.log('COMMITTING!', info);
-    doneQuizzing(db, USER, quiz.update.docId, quiz.factId, quiz.allRelatedUpdates, info);
-    return p(result ? '✅✅✅!' : '❌❌❌');
+    return { DOM: p(result ? '✅✅✅!' : '❌❌❌'), sink: [answer, quiz, info] };
 }
+
 
 function newFactToDom(fact: WhatToLearnInfo): VNode {
     if (!fact) { return null; }
     return div([p("Hey! Learn this: " + JSON.stringify(fact.fact)),
     button("#learned-button", "Learned!")]);
+}
+
+function makeDOMStream(sources) {
+    const quiz$ = sources.quiz
+        .map((quiz: WhatToQuizInfo) => xs.fromPromise(tono5k.howToQuiz(quiz.factId).then(quizInfo => {
+            quiz.quizInfo = quizInfo;
+            return quiz;
+        })))
+        .flatten().remember() as MemoryStream<WhatToQuizInfo>;
+    const known$ = sources.known;
+    // quiz$.addListener({ next: x => console.log('quiz3', x) })
+
+    const quizDom$ = quiz$.map(quiz => quiz && quiz.risky ? quizToDOM(quiz) : null);
+    const answerButton$ = xs.merge(sources.DOM.select('form').events('submit').map(e => {
+        e.preventDefault();
+        return (document.querySelector('#answer-text') as any).value
+    }),
+        sources.DOM.select('button.answer').events('click').map(e => +(e.target.id.split('-')[1]))) as xs<number | string>;
+    const questionAnswer$ = answerButton$.compose(sampleCombine(quiz$));
+    const questionAnswerResult$ = questionAnswer$/*.filter(([ans, quiz] )=> !!quiz)*/.map(([ans, quiz]) => checkAnswer([ans, quiz]));
+    const questionAnswerSink$ = questionAnswerResult$.map(o => o.sink);
+    const questionAnswerDom$ = questionAnswerResult$.map(o => o.DOM);
+    const quizAllDom$ = xs.merge(questionAnswerDom$, quizDom$);
+
+    const fact$ = known$.map(knownFactIds => xs.fromPromise(tono5k.whatToLearn(knownFactIds))).flatten().remember();
+    const factDom$ = fact$.map(fact => fact ? newFactToDom(fact) : null);
+    const learnedFact$ = sources.DOM.select('button#learned-button').events('click').compose(sampleCombine(fact$)).map(([_, fact]) => fact) as xs<WhatToLearnInfo>;
+    const learnedFactDom$ = learnedFact$.map(fact => p("Great!"));
+    const learnAllDom$ = xs.merge(factDom$, learnedFactDom$).startWith(null);
+
+    return {
+        DOM: xs.merge(quizAllDom$, learnAllDom$),
+        learned: learnedFact$,
+        quizzed: questionAnswerSink$
+    };
 }

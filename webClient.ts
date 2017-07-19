@@ -12,7 +12,7 @@ import {
 } from "./storageServer";
 import { EbisuObject, ebisu } from "./ebisu";
 import { xstreamToPromise, endsWith, elapsedHours } from "./utils";
-import { WhatToLearnInfo, HowToQuizInfo, FactDbCycle } from "./cycleInterfaces";
+import { WhatToLearnInfo, WhatToQuizInfo, FactDbCycle } from "./cycleInterfaces";
 
 // Import all FactDb-implementing modules, then add them to the docid2module map!
 import { toponyms } from "./toponyms";
@@ -44,34 +44,30 @@ async function webSubmit(user: string, docId: string, factId: string, ebisuObjec
     return submit(db, user, docId, factId, ebisuObject, updateObject);
 }
 
-
-async function whatToQuiz(db, USER, SOLE_DOCID): Promise<HowToQuizInfo> {
-    let [update0, prob0]: [FactUpdate, number] = (await xstreamToPromise(getMostForgottenFact(db, makeLeveldbOpts(USER, SOLE_DOCID))))[0];
+async function whatToQuiz(db, user: string, soleDocId: string = ''): Promise<WhatToQuizInfo> {
+    let [update0, prob0]: [FactUpdate, number] = (await xstreamToPromise(getMostForgottenFact(db, makeLeveldbOpts(user, soleDocId))))[0];
 
     if (prob0 && prob0 <= PROB_THRESH) {
         const docId = update0.docId;
         const factdb = docid2module.get(docId);
         const plain0 = factdb.stripFactIdOfSubfact(update0.factId);
-        const allRelatedUpdates = await xstreamToPromise(omitNonlatestUpdates(db, makeLeveldbOpts(USER, docId, plain0, true)));
-        const quizInfo = await factdb.howToQuiz(USER, docId, update0.factId, allRelatedUpdates);
-        return { risky: true, prob: prob0, quizInfo, update: update0, allRelatedUpdates, factId: update0.factId, startTime: new Date() };
+        const allRelatedUpdates = await xstreamToPromise(omitNonlatestUpdates(db, makeLeveldbOpts(user, docId, plain0, true)));
+        // const quizInfo = await factdb.howToQuiz(user, docId, update0.factId, allRelatedUpdates);
+        return { risky: true, /*quizInfo,*/ prob: prob0, update: update0, allRelatedUpdates, factId: update0.factId, docId, startTime: new Date() };
     }
-    return { risky: false, prob: prob0, update: update0 };
+    return { risky: false, prob: prob0, update: update0, docId: update0.docId };
 }
 
 
-async function whatToLearn(db, USER: string, SOLE_DOCID: string): Promise<WhatToLearnInfo> {
-    const knownFactIds: string[] = await xstreamToPromise(getKnownFactIds(db, makeLeveldbOpts(USER, SOLE_DOCID)));
-    let factsPromises: Promise<WhatToLearnInfo>[] = [];
-    for (const [docId, mod] of Array.from(docid2module)) {
-        factsPromises.push(mod.whatToLearn(USER, docId, knownFactIds).then(fact => ({ fact, docId: docId })));
-    }
-    const facts = (await Promise.all(factsPromises)).filter(x => !!x);
-    return facts.length ? facts[0] : null;
+
+async function doneLearning(user, docId, fact) {
+    docid2module.get(docId)
+        .factToFactIds(fact)
+        .forEach(factId => webSubmit(user, docId, factId, newlyLearned, { firstLearned: true }));
 }
 
-async function doneLearning(USER, DOCID, fact) {
-    docid2module.get(DOCID).factToFactIds(fact).forEach(factId => webSubmit(USER, DOCID, factId, newlyLearned, { firstLearned: true }));
+function webDoneQuizzing(docId: string, factId: string, allUpdates: FactUpdate[], info: any) {
+    doneQuizzing(db, USER, docId, factId, allUpdates, info)
 }
 
 function main(sources) {
@@ -79,35 +75,28 @@ function main(sources) {
 
     const levelOpts = makeLeveldbOpts(USER);
 
-
     const quiz$ = action$.map(_ => xs.fromPromise(whatToQuiz(db, USER, '')))
         .flatten()
-        .startWith(null) as MemoryStream<HowToQuizInfo>;
-    const quizDom$ = quiz$.map(quiz => quiz && quiz.risky ? docid2module.get(quiz.update.docId).quizToDOM(quiz) : null);
+        .remember() as MemoryStream<WhatToQuizInfo>;
+    // quiz$.addListener({ next: x => console.log('quiz', x) })
 
-    const answerButton$ = xs.merge(sources.DOM.select('form').events('submit').map(e => {
-        e.preventDefault();
-        return (document.querySelector('#answer-text') as any).value
-    }),
-        sources.DOM.select('button.answer').events('click').map(e => +(e.target.id.split('-')[1]))) as xs<number | string>;
-    const questionAnswer$ = answerButton$.compose(sampleCombine(quiz$));
-    const questionAnswerDom$ = questionAnswer$.map(([ans, quiz]) => docid2module.get(quiz.update.docId).checkAnswer(db, USER, [ans, quiz]));
-    const quizAllDom$ = xs.merge(questionAnswerDom$, quizDom$);
+    function docIdModToKnownStream(docId, mod) {
+        return quiz$
+            .filter(q => q && !q.risky)
+            .map(_ => xs.fromPromise(xstreamToPromise(getKnownFactIds(db, makeLeveldbOpts(USER, docId)))))
+            .flatten()
+            .remember();
+    }
 
+    const sinks = Array.from(docid2module.entries()).map(([docId, mod]) => {
+        const all = mod.makeDOMStream({ DOM: sources.DOM, quiz: quiz$.filter(quiz => quiz && quiz.docId === docId), known: docIdModToKnownStream(docId, mod) })
+        all.learned.addListener({ next: fact => doneLearning(USER, docId, fact) });
+        all.quizzed.addListener({ next: ([ans, quiz, info]) => webDoneQuizzing(quiz.update.docId, quiz.factId, quiz.allRelatedUpdates, info) })
+        return all;
+    });
+    const allDom$ = xs.merge(...sinks.map(o => o.DOM));
 
-    const fact$ = quiz$
-        .filter(q => q && !q.risky)
-        .map(_ => xs.fromPromise(whatToLearn(db, USER, '')))
-        .flatten().
-        startWith(null) as MemoryStream<WhatToLearnInfo>;
-    const factDom$ = fact$.map(fact => fact ? docid2module.get(fact.docId).newFactToDom(fact) : null);
-    const learnedFact$ = sources.DOM.select('button#learned-button').events('click').compose(sampleCombine(fact$)).map(([_, fact]) => fact) as xs<WhatToLearnInfo>;
-    learnedFact$.addListener({ next: fact => doneLearning(USER, fact.docId, fact.fact) });
-    const learnedFactDom$ = learnedFact$.map(fact => p("Great!"));
-    const learnAllDom$ = xs.merge(factDom$, learnedFactDom$);
-
-    const all$ = xs.merge(learnAllDom$, quizAllDom$);
-    const vdom$ = all$.map(element => {
+    const vdom$ = allDom$.map(element => {
         return div([
             button('.hit-me', 'Hit me'),
             element
