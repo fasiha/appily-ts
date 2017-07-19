@@ -84,8 +84,9 @@ function makeDOMStream(sources: CycleSources): CycleSinks {
     const quizDom$ = quiz$.map(quiz => quiz && quiz.risky ? quizToDOM(quiz) : null);
     const answerButton$ = xs.merge(sources.DOM.select('form').events('submit').map(e => {
         e.preventDefault();
-        return (document.querySelector('#answer-text') as any).value
-    }),
+        var node = (document.querySelector('#answer-text') as any);
+        return node ? node.value : null;
+    }).filter(x => x !== null),
         sources.DOM.select('button.answer').events('click').map(e => +(e.target.id.split('-')[1]))) as xs<number | string>;
     const questionAnswer$ = answerButton$.compose(sampleCombine(quiz$));
     const questionAnswerResult$ = questionAnswer$.map(([ans, quiz]) => checkAnswer([ans, quiz]));

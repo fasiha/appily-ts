@@ -30,7 +30,7 @@ function quizToDOM(quiz: WhatToQuizInfo): VNode {
     } else {
         vec.push(p(`What’s the reading for: ${furiganaStringToPlain(fact)}`));
         vec.push(form('.answer-form', { attrs: { autocomplete: "off", action: 'javascript:void(0);' } },
-            [input('#answer-text', { type: "text", placeholder: "Doo bee doo bee doo" }),
+            [input('#answer-text', { attrs: { autocomplete: "off", type: "text", placeholder: "Doo bee doo bee doo" } }),
             button('#answer-submit', 'Submit')]));
     }
     return div([p(`¡¡¡QUIZ TIME!!! ${quiz.prob.toFixed(5)}`)].concat(vec));
@@ -77,9 +77,12 @@ function makeDOMStream(sources: CycleSources): CycleSinks {
     const quizDom$ = quiz$.map(quiz => quiz && quiz.risky ? quizToDOM(quiz) : null);
     const answerButton$ = xs.merge(sources.DOM.select('form').events('submit').map(e => {
         e.preventDefault();
-        return (document.querySelector('#answer-text') as any).value
-    }),
-        sources.DOM.select('button.answer').events('click').map(e => +(e.target.id.split('-')[1]))) as xs<number | string>;
+        var node = (document.querySelector('#answer-text') as any);
+        console.log('topo', node)
+
+        return node ? node.value : null;
+    }).filter(x => x !== null),
+        sources.DOM.select('button.answer').events('click').map(e => +(e.target.id.split('-')[1]))) 　as xs<number | string>;
     const questionAnswer$ = answerButton$.compose(sampleCombine(quiz$));
     const questionAnswerResult$ = questionAnswer$/*.filter(([ans, quiz] )=> !!quiz)*/.map(([ans, quiz]) => checkAnswer([ans, quiz]));
     const questionAnswerSink$ = questionAnswerResult$.map(o => o.sink);
