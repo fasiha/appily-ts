@@ -1,4 +1,6 @@
-import { Tono, HowToQuizInfo, tono5k } from "./tono5k";
+import { WEB_URL, Fact, HowToQuizInfo, toponyms } from "./toponyms";
+import { furiganaStringToReading, parseMarkdownLinkRuby, furiganaStringToPlain, Furigana, Ruby } from "./ruby";
+
 import { xstreamToPromise, endsWith, elapsedHours } from "./utils";
 import { WhatToQuizInfo, FactDbCycle, WhatToLearnInfo, CycleSinks, CycleSources } from "./cycleInterfaces";
 
@@ -9,34 +11,24 @@ import { div, button, p, ol, li, span, input, form, makeDOMDriver, VNode } from 
 import sampleCombine from 'xstream/extra/sampleCombine'
 
 
-export const tono5kCyclejs: FactDbCycle = {
+export const toponymsCyclejs: FactDbCycle = {
     makeDOMStream,
-    stripFactIdOfSubfact: tono5k.stripFactIdOfSubfact,
-    factToFactIds: tono5k.factToFactIds
+    stripFactIdOfSubfact: toponyms.stripFactIdOfSubfact,
+    factToFactIds: toponyms.factToFactIds
 };
 
 function quizToDOM(quiz: WhatToQuizInfo): VNode {
     const factId = quiz.factId;
     const quizInfo = quiz.quizInfo;
-    const fact: Tono = quizInfo.fact;
+    const fact: Fact = quizInfo.fact;
     let vec = [];
-    if (endsWith(factId, '-kanji') || endsWith(factId, '-meaning')) {
-        const confusers: Tono[] = quizInfo.confusers;
-        if (endsWith(factId, '-kanji')) {
-            let s = `What’s the kanji for: ${fact.readings.join('・')} and meaning 「${fact.meaning}」?`;
-            vec.push(p(s));
-            vec.push(ol(confusers.map((fact, idx) => li([button(`#answer-${idx}.answer`, `${idx + 1}`), span(` ${fact.kanjis.join('・')}`)]))));
-        } else {
-            let s = `What’s the meaning of: ${fact.kanjis.length ? fact.kanjis.join('・') + ', ' : ''}${fact.readings.join('・')}?`;
-            vec.push(p(s));
-            vec.push(ol(confusers.map((fact, idx) => li([button(`#answer-${idx}.answer`, `${idx + 1}`), span(` ${fact.meaning}`)]))));
-        }
+    if (endsWith(factId, '-kanji')) {
+        const confusers: Fact[] = quizInfo.confusers;
+        let s = `What’s the kanji for: ${furiganaStringToReading(fact)}`;
+        vec.push(p(s));
+        vec.push(ol(confusers.map((fact, idx) => li([button(`#answer-${idx}.answer`, `${idx + 1}`), span(` ${furiganaStringToPlain(fact)}`)]))));
     } else {
-        if (fact.kanjis.length) {
-            vec.push(p(`What’s the reading for: ${fact.kanjis.join('・')}, 「${fact.meaning}」?`));
-        } else {
-            vec.push(p(`What’s the reading for: 「${fact.meaning}」?`));
-        }
+        vec.push(p(`What’s the reading for: ${furiganaStringToPlain(fact)}`));
         vec.push(form('.answer-form', { attrs: { autocomplete: "off", action: 'javascript:void(0);' } },
             [input('#answer-text', { type: "text", placeholder: "Doo bee doo bee doo" }),
             button('#answer-submit', 'Submit')]));
@@ -51,14 +43,15 @@ function checkAnswer([answer, quiz]: [number | string, WhatToQuizInfo]) {
     let info: any = { hoursWaited: elapsedHours(quiz.startTime) };
     const quizInfo: HowToQuizInfo = quiz.quizInfo;
     if (typeof answer === 'string') {
-        result = quizInfo.fact.readings.indexOf(answer) >= 0;
+        result = furiganaStringToReading(quizInfo.fact) === answer;
         info.result = result;
         info.response = answer;
     } else {
-        result = quizInfo.confusers[answer].num === quizInfo.fact.num
+        // result = furiganaStringToPlain(confusers[responseIdx]) === furiganaStringToPlain(fact);
+        result = furiganaStringToPlain(quizInfo.confusers[answer]) === furiganaStringToPlain(quizInfo.fact);
         info.result = result;
-        info.response = quizInfo.confusers[answer].num;
-        info.confusers = quizInfo.confusers.map(fact => fact.num);
+        info.response = furiganaStringToPlain(quizInfo.confusers[answer]);
+        info.confusers = quizInfo.confusers.map(furiganaStringToPlain);
     };
     console.log('COMMITTING!', info);
     return { DOM: p(result ? '✅✅✅!' : '❌❌❌'), sink: [answer, quiz, info] };
@@ -73,7 +66,7 @@ function newFactToDom(fact: WhatToLearnInfo): VNode {
 
 function makeDOMStream(sources: CycleSources): CycleSinks {
     const quiz$ = sources.quiz
-        .map((quiz: WhatToQuizInfo) => xs.fromPromise(tono5k.howToQuiz(quiz.factId).then(quizInfo => {
+        .map((quiz: WhatToQuizInfo) => xs.fromPromise(toponyms.howToQuiz(quiz.factId).then(quizInfo => {
             quiz.quizInfo = quizInfo;
             return quiz;
         })))
@@ -88,12 +81,12 @@ function makeDOMStream(sources: CycleSources): CycleSinks {
     }),
         sources.DOM.select('button.answer').events('click').map(e => +(e.target.id.split('-')[1]))) as xs<number | string>;
     const questionAnswer$ = answerButton$.compose(sampleCombine(quiz$));
-    const questionAnswerResult$ = questionAnswer$.map(([ans, quiz]) => checkAnswer([ans, quiz]));
+    const questionAnswerResult$ = questionAnswer$/*.filter(([ans, quiz] )=> !!quiz)*/.map(([ans, quiz]) => checkAnswer([ans, quiz]));
     const questionAnswerSink$ = questionAnswerResult$.map(o => o.sink);
     const questionAnswerDom$ = questionAnswerResult$.map(o => o.DOM);
     const quizAllDom$ = xs.merge(questionAnswerDom$, quizDom$);
 
-    const fact$ = known$.map(knownFactIds => xs.fromPromise(tono5k.whatToLearn(knownFactIds))).flatten().remember();
+    const fact$ = known$.map(knownFactIds => xs.fromPromise(toponyms.whatToLearn(knownFactIds))).flatten().remember();
     const factDom$ = fact$.map(fact => fact ? newFactToDom(fact) : null);
     const learnedFact$ = sources.DOM.select('button#learned-button').events('click').compose(sampleCombine(fact$)).map(([_, fact]) => fact) as xs<WhatToLearnInfo>;
     const learnedFactDom$ = learnedFact$.map(fact => p("Great!"));

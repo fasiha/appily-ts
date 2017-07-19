@@ -15,9 +15,10 @@ import { xstreamToPromise, endsWith, elapsedHours } from "./utils";
 import { WhatToLearnInfo, WhatToQuizInfo, FactDbCycle } from "./cycleInterfaces";
 
 // Import all FactDb-implementing modules, then add them to the docid2module map!
-import { toponyms } from "./toponyms";
+import { toponymsCyclejs } from "./toponyms-cyclejs";
 import { tono5kCyclejs } from "./tono5k-cyclejs";
-const docid2module: Map<string, FactDbCycle> = new Map([/*["toponyms", toponyms],*/["tono5k", tono5kCyclejs]]);
+// const docid2module: Map<string, FactDbCycle> = new Map([["toponyms", toponymsCyclejs]]);
+const docid2module: Map<string, FactDbCycle> = new Map([["toponyms", toponymsCyclejs], ["tono5k", tono5kCyclejs]]);
 
 const USER = "ammy";
 const PROB_THRESH = 0.5;
@@ -47,7 +48,7 @@ async function webSubmit(user: string, docId: string, factId: string, ebisuObjec
 async function whatToQuiz(db, user: string, soleDocId: string = ''): Promise<WhatToQuizInfo> {
     let [update0, prob0]: [FactUpdate, number] = (await xstreamToPromise(getMostForgottenFact(db, makeLeveldbOpts(user, soleDocId))))[0];
 
-    if (prob0 && prob0 <= PROB_THRESH) {
+    if (prob0 && prob0 <= PROB_THRESH && docid2module.has(update0.docId)) {
         const docId = update0.docId;
         const factdb = docid2module.get(docId);
         const plain0 = factdb.stripFactIdOfSubfact(update0.factId);
@@ -75,7 +76,7 @@ function main(sources) {
 
     const levelOpts = makeLeveldbOpts(USER);
 
-    const quiz$ = action$.map(_ => xs.fromPromise(whatToQuiz(db, USER, '')))
+    const quiz$ = action$.map(_ => xs.fromPromise(whatToQuiz(db, USER, 'toponyms')))
         .flatten()
         .remember() as MemoryStream<WhatToQuizInfo>;
     // quiz$.addListener({ next: x => console.log('quiz', x) })
