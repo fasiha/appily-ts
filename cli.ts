@@ -5,7 +5,7 @@ import {
 import { db } from "./diskDb";
 import { ebisu, EbisuObject } from "./ebisu";
 import { xstreamToPromise, cliPrompt, elapsedHours } from "./utils";
-import { FactDbCli } from "./cliInterface";
+import { FactDbCli, SubmitFunction, DoneQuizzingFunction } from "./cliInterface";
 
 let USER = "ammy";
 
@@ -14,8 +14,19 @@ import { toponymsCli } from "./toponyms-cli";
 import { tono5kCli } from "./tono5k-cli";
 let docid2module: Map<string, FactDbCli> = new Map([["toponyms", toponymsCli], ["tono5k", tono5kCli]]);
 
-async function cliSubmit(user: string, docId: string, factId: string, ebisuObject: EbisuObject, updateObject: any) {
-    return submit(db, user, docId, factId, ebisuObject, updateObject);
+
+function makeSubmitFunction(db, user, docId) {
+    const f:SubmitFunction = async function(factId: string, ebisuObject: EbisuObject, updateObject: any) : Promise<void>{
+        return submit(db, user, docId,factId, ebisuObject, updateObject);
+    };
+    return f;
+}
+
+function makeDoneQuizzingFunction(db, user, docId) {
+    const g:DoneQuizzingFunction = async function(factId: string, allUpdates: FactUpdate[], info:any) : Promise<void>{
+        return doneQuizzing(db, user, docId, factId, allUpdates, info);
+    };
+    return g;
 }
 
 import xs from 'xstream';
@@ -31,15 +42,15 @@ async function loop(SOLE_DOCID: string = '', probThreshold: number = 0.5) {
         const allRelatedUpdates = await xstreamToPromise(omitNonlatestUpdates(db, makeLeveldbOpts(USER, docId, plain0, true)));
 
         console.log("Review!", prob0);
-        await factdb.administerQuiz(db, USER, docId, update0.factId, allRelatedUpdates);
+        await factdb.administerQuiz(makeDoneQuizzingFunction(db, USER, docId), update0.factId, allRelatedUpdates);
     } else {
         if (SOLE_DOCID) {
             const factdb = docid2module.get(SOLE_DOCID);
-            await factdb.findAndLearn(cliSubmit, USER, SOLE_DOCID, await xstreamToPromise(getKnownFactIds(db, makeLeveldbOpts(USER, SOLE_DOCID))));
+            await factdb.findAndLearn(makeSubmitFunction(db, USER, SOLE_DOCID), await xstreamToPromise(getKnownFactIds(db, makeLeveldbOpts(USER, SOLE_DOCID))));
         } else {
             // FIXME why Array.from required here? TypeScript problem?
             for (const [docId, factdb] of Array.from(docid2module.entries())) {
-                await factdb.findAndLearn(cliSubmit, USER, docId, await xstreamToPromise(getKnownFactIds(db, makeLeveldbOpts(USER, docId))));
+                await factdb.findAndLearn(makeSubmitFunction(db, USER, docId), await xstreamToPromise(getKnownFactIds(db, makeLeveldbOpts(USER, docId))));
             }
         }
     }

@@ -1,8 +1,9 @@
 import { FactUpdate } from "./storageServer";
 import { EbisuObject } from "./ebisu";
-export type SubmitFunction = (user: string, docId: string, factId: string, ebisuObject: EbisuObject, updateObject: any) => Promise<void>;
+export type SubmitFunction = (factId: string, ebisuObject: EbisuObject, updateObject: any) => Promise<void>;
+export type DoneQuizzingFunction = (factId: string, allUpdates: FactUpdate[], info:any) => Promise<void>;
 export interface FactDbCli {
-    administerQuiz: (db, USER: string, docId: string, factId: string, allRelatedUpdates: FactUpdate[]) => Promise<void>;
+    findAndLearn: (submit: SubmitFunction, knownFactIds: string[]) => Promise<void>;
+    administerQuiz: (doneQuizing: DoneQuizzingFunction, factId: string, allRelatedUpdates: FactUpdate[]) => Promise<void>;
     stripFactIdOfSubfact: (factId: string) => string;
-    findAndLearn: (submit: SubmitFunction, USER: string, DOCID: string, knownFactIds: string[]) => Promise<void>;
 }

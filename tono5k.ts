@@ -5,7 +5,7 @@ import { ebisu, EbisuObject } from "./ebisu";
 import { uncachedUrlFetch, dedupeViaSets, endsWith, elapsedHours, all, any, concatMap } from "./utils";
 import { furiganaStringToPlain, parseJmdictFurigana } from "./ruby";
 
-export const tono5k: FactDb = { stripFactIdOfSubfact, whatToLearn, howToQuiz };
+export const tono5k: FactDb = { stripFactIdOfSubfact, whatToLearn, howToQuiz, factToFactIds };
 
 const TONO_URL = "https://raw.githubusercontent.com/fasiha/tono-yamazaki-maekawa/master/tono.json";
 const TONO_LOCAL = 'tono.json';
@@ -14,7 +14,7 @@ const allFactsProm: Promise<Tono[]> = urlToFacts(TONO_URL, TONO_LOCAL);
 const availableFactIdsProm: Promise<Set<string>> = allFactsProm.then(allFacts => new Set(concatMap(allFacts, factToFactIds)));
 const allFactsWithKanjiProm = allFactsProm.then(allFacts => allFacts.filter((fact: Tono) => fact.kanjis.length > 0));
 
-export function stripFactIdOfSubfact(factId: string): string {
+function stripFactIdOfSubfact(factId: string): string {
     return factId.split('-').slice(0, -1).join('');
 }
 
@@ -37,7 +37,7 @@ async function urlToFacts(url: string, local: string): Promise<Tono[]> {
     })
 }
 
-export function factToFactIds(fact: Tono): string[] {
+function factToFactIds(fact: Tono): string[] {
     const plain = fact.num;
     if (fact.kanjis.length > 0) {
         return 'kanji,reading,meaning'.split(',').map(sub => `${plain}-${sub}`);
@@ -45,7 +45,7 @@ export function factToFactIds(fact: Tono): string[] {
     return 'reading,meaning'.split(',').map(sub => `${plain}-${sub}`);
 }
 
-export async function whatToLearn(USER: string, DOCID: string, knownFactIds: string[]): Promise<Tono> {
+async function whatToLearn(knownFactIds: string[]): Promise<Tono> {
     const allFacts = await allFactsProm;
     const availableFactIds = new Set(concatMap(allFacts, factToFactIds));
     const knownIdsSet = new Set(knownFactIds.filter(s => availableFactIds.has(s)));
@@ -62,7 +62,7 @@ export interface HowToQuizInfo {
     confusers?: Tono[];
 };
 
-export async function howToQuiz(USER: string, DOCID: string, factId: string, allUpdates: FactUpdate[]): Promise<HowToQuizInfo> {
+async function howToQuiz(factId: string): Promise<HowToQuizInfo> {
     let allFacts: Tono[] = await allFactsProm;
     let plain0 = +stripFactIdOfSubfact(factId);
     let fact = allFacts.find(fact => fact.num === plain0);

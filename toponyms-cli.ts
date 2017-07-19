@@ -1,23 +1,23 @@
-import { FactUpdate, FactDb, doneQuizzing } from "./storageServer";
+import { FactUpdate, FactDb } from "./storageServer";
 import { EbisuObject, ebisu } from "./ebisu";
 import { cliPrompt, endsWith, elapsedHours } from "./utils";
 import { furiganaStringToReading, parseMarkdownLinkRuby, furiganaStringToPlain, Furigana, Ruby } from "./ruby";
-import { WEB_URL, Fact, HowToQuizInfo, howToQuiz, whatToLearn, factToFactIds, stripFactIdOfSubfact } from "./toponyms";
-import { FactDbCli, SubmitFunction } from "./cliInterface";
+import { WEB_URL, Fact, HowToQuizInfo, toponyms  } from "./toponyms";
+import { FactDbCli, SubmitFunction,DoneQuizzingFunction } from "./cliInterface";
 
 const newlyLearned = ebisu.defaultModel(0.25, 2.5);
 const buryForever = ebisu.defaultModel(Infinity);
 
 function factIdToURL(s: string) {
-    return `${WEB_URL}#${encodeURI(stripFactIdOfSubfact(s))}`;
+    return `${WEB_URL}#${encodeURI(toponyms.stripFactIdOfSubfact(s))}`;
 }
 
-export const toponymsCli: FactDbCli = { administerQuiz, findAndLearn, stripFactIdOfSubfact };
+export const toponymsCli: FactDbCli = { administerQuiz, findAndLearn, stripFactIdOfSubfact:toponyms.stripFactIdOfSubfact };
 
-async function findAndLearn(submit: SubmitFunction, USER: string, DOCID: string, knownFactIds: string[]) {
-    const fact: Fact = await whatToLearn(USER, DOCID, knownFactIds);
+async function findAndLearn(submit: SubmitFunction, knownFactIds: string[]) {
+    const fact: Fact = await toponyms.whatToLearn(knownFactIds);
     if (fact) {
-        let factIds: string[] = factToFactIds(fact);
+        let factIds: string[] = toponyms.factToFactIds(fact);
 
         console.log(`Hey! Learn this:`);
         console.log(fact);
@@ -28,15 +28,17 @@ async function findAndLearn(submit: SubmitFunction, USER: string, DOCID: string,
         console.log('Hit Enter when you got it. (Control-C to quit without committing to learn this.)');
         var start = new Date();
         var typed = await cliPrompt();
-        factIds.forEach(factId => submit(USER, DOCID, factId, newlyLearned, { firstLearned: true, hoursWaited: elapsedHours(start) }));
+        factIds.forEach(factId => submit(factId, newlyLearned, { firstLearned: true, hoursWaited: elapsedHours(start) }));
     } else {
         console.log(`No new facts to learn. Go outside and play!`)
     }
 }
 
-async function administerQuiz(db: any, USER: string, DOCID: string, factId: string, allUpdates: FactUpdate[]) {
+// export async function administerQuiz(doneQuizzing:DoneQuizzingFunction, factId: string, allUpdates: FactUpdate[]) {
+
+async function administerQuiz(doneQuizzing:DoneQuizzingFunction, factId: string, allUpdates: FactUpdate[]) {
     console.log(`¡¡¡🎆 QUIZ TIME 🎇!!!`);
-    let quiz: HowToQuizInfo = await howToQuiz(USER, DOCID, factId, allUpdates);
+    let quiz: HowToQuizInfo = await toponyms.howToQuiz( factId);
     let fact = quiz.fact;
     const alpha = 'ABCDEFGHIJKLM'.split('');
 
@@ -70,7 +72,7 @@ async function administerQuiz(db: any, USER: string, DOCID: string, factId: stri
     }
     info.hoursWaited = elapsedHours(start);
 
-    await doneQuizzing(db, USER, DOCID, factId, allUpdates, info);
+    await doneQuizzing( factId, allUpdates, info);
 
     if (result) { console.log('✅✅✅!'); }
     else { console.log('❌❌❌', fact); }

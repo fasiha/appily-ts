@@ -1,19 +1,18 @@
-import { FactUpdate, FactDb, doneQuizzing } from "./storageServer";
+import { FactUpdate, FactDb } from "./storageServer";
 import { EbisuObject, ebisu } from "./ebisu";
 import { cliPrompt, endsWith, elapsedHours } from "./utils";
-import { Tono, HowToQuizInfo, howToQuiz, whatToLearn, factToFactIds, stripFactIdOfSubfact } from "./tono5k";
-import { FactDbCli, SubmitFunction } from "./cliInterface";
+import { Tono, HowToQuizInfo ,tono5k} from "./tono5k";
+import { FactDbCli, SubmitFunction, DoneQuizzingFunction } from "./cliInterface";
 
 const newlyLearned = ebisu.defaultModel(0.25, 2.5);
 const buryForever = ebisu.defaultModel(Infinity);
 
-export const tono5kCli: FactDbCli = { administerQuiz, findAndLearn, stripFactIdOfSubfact };
+export const tono5kCli: FactDbCli = { administerQuiz, findAndLearn, stripFactIdOfSubfact:tono5k.stripFactIdOfSubfact };
 
-export async function findAndLearn(submit: SubmitFunction, USER: string, DOCID: string, knownFactIds: string[]): Promise<void> {
-    let fact: Tono = await whatToLearn(USER, DOCID, knownFactIds);
+ async function findAndLearn(submit: SubmitFunction,   knownFactIds: string[]): Promise<void> {
+    let fact: Tono = await tono5k.whatToLearn(knownFactIds);
 
     if (fact) {
-        // await learnFact(USER, DOCID, fact, factToFactIds(fact));
         console.log(`Hey! Learn this:`);
         console.log(fact);
         if (fact.kanjis.length) {
@@ -22,8 +21,8 @@ export async function findAndLearn(submit: SubmitFunction, USER: string, DOCID: 
         console.log('Hit Enter when you got it. (Control-C to quit without committing to learn this.)');
         const start = new Date();
         const typed = await cliPrompt();
-        const factIds = factToFactIds(fact);
-        factIds.forEach(factId => submit(USER, DOCID, factId, newlyLearned, { firstLearned: true, hoursWaited: elapsedHours(start) }));
+        const factIds = tono5k.factToFactIds(fact);
+        factIds.forEach(factId => submit(factId, newlyLearned, { firstLearned: true, hoursWaited: elapsedHours(start) }));
     } else {
         console.log(`No new facts to learn. Go outside and play!`)
     }
@@ -37,10 +36,10 @@ interface DoneQuizzingInfo {
     hoursWaited?: number;
 };
 
-export async function administerQuiz(db, USER: string, DOCID: string, factId: string, allUpdates: FactUpdate[]) {
+ async function administerQuiz(doneQuizzing:DoneQuizzingFunction, factId: string, allUpdates: FactUpdate[]) {
     console.log(`¡¡¡🎆 QUIZ TIME 🎇!!!`);
 
-    let quiz: HowToQuizInfo = await howToQuiz(USER, DOCID, factId, allUpdates);
+    let quiz: HowToQuizInfo = await tono5k.howToQuiz(factId);
     let fact = quiz.fact;
     const alpha = 'ABCDEFGHIJKLM'.split('');
 
@@ -82,7 +81,7 @@ export async function administerQuiz(db, USER: string, DOCID: string, factId: st
     }
     info.hoursWaited = elapsedHours(start);
 
-    await doneQuizzing(db, USER, DOCID, factId, allUpdates, info);
+    await doneQuizzing(factId, allUpdates, info);
 
     if (result) { console.log('✅✅✅!'); }
     else { console.log('❌❌❌', fact); }
