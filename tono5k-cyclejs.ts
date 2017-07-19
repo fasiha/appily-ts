@@ -4,7 +4,7 @@ import {
     FactUpdate, getMostForgottenFact, omitNonlatestUpdates, getKnownFactIds,
     makeLeveldbOpts, submit, doneQuizzing, FactDb
 } from "./storageServer";
-import { WhatToQuizInfo, FactDbCycle, WhatToLearnInfo } from "./cycleInterfaces";
+import { WhatToQuizInfo, FactDbCycle, WhatToLearnInfo, CycleSinks, CycleSources } from "./cycleInterfaces";
 
 import xs from 'xstream';
 import { MemoryStream } from 'xstream';
@@ -74,7 +74,7 @@ function newFactToDom(fact: WhatToLearnInfo): VNode {
     button("#learned-button", "Learned!")]);
 }
 
-function makeDOMStream(sources) {
+function makeDOMStream(sources: CycleSources): CycleSinks {
     const quiz$ = sources.quiz
         .map((quiz: WhatToQuizInfo) => xs.fromPromise(tono5k.howToQuiz(quiz.factId).then(quizInfo => {
             quiz.quizInfo = quizInfo;

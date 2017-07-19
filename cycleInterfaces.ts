@@ -12,12 +12,23 @@ export interface WhatToQuizInfo {
     startTime?: Date;
 };
 
-
 export interface FactDbCycle {
     stripFactIdOfSubfact: (factId: string) => string;
     factToFactIds: (fact: any) => string[];
-    makeDOMStream: any;
+    makeDOMStream: MakeDOMStreamFunction;
 };
+
+export interface CycleSources {
+    DOM: any;
+    quiz: any;
+    known: any;
+}
+export interface CycleSinks {
+    DOM: any;
+    learned: any;
+    quizzed: any;
+}
+export type MakeDOMStreamFunction = (source: CycleSources) => CycleSinks;
 
 export interface WhatToLearnInfo {
     fact: any;
