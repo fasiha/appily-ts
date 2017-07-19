@@ -2,8 +2,8 @@ import { FactUpdate, FactDb } from "./storageServer";
 import { EbisuObject, ebisu } from "./ebisu";
 import { cliPrompt, endsWith, elapsedHours } from "./utils";
 import { furiganaStringToReading, parseMarkdownLinkRuby, furiganaStringToPlain, Furigana, Ruby } from "./ruby";
-import { WEB_URL, Fact, HowToQuizInfo, toponyms  } from "./toponyms";
-import { FactDbCli, SubmitFunction,DoneQuizzingFunction } from "./cliInterface";
+import { WEB_URL, Fact, HowToQuizInfo, toponyms } from "./toponyms";
+import { FactDbCli, SubmitFunction, DoneQuizzingFunction } from "./cliInterface";
 
 const newlyLearned = ebisu.defaultModel(0.25, 2.5);
 const buryForever = ebisu.defaultModel(Infinity);
@@ -12,7 +12,7 @@ function factIdToURL(s: string) {
     return `${WEB_URL}#${encodeURI(toponyms.stripFactIdOfSubfact(s))}`;
 }
 
-export const toponymsCli: FactDbCli = { administerQuiz, findAndLearn, stripFactIdOfSubfact:toponyms.stripFactIdOfSubfact };
+export const toponymsCli: FactDbCli = { administerQuiz, findAndLearn, stripFactIdOfSubfact: toponyms.stripFactIdOfSubfact };
 
 async function findAndLearn(submit: SubmitFunction, knownFactIds: string[]) {
     const fact: Fact = await toponyms.whatToLearn(knownFactIds);
@@ -36,9 +36,9 @@ async function findAndLearn(submit: SubmitFunction, knownFactIds: string[]) {
 
 // export async function administerQuiz(doneQuizzing:DoneQuizzingFunction, factId: string, allUpdates: FactUpdate[]) {
 
-async function administerQuiz(doneQuizzing:DoneQuizzingFunction, factId: string, allUpdates: FactUpdate[]) {
+async function administerQuiz(doneQuizzing: DoneQuizzingFunction, factId: string, allUpdates: FactUpdate[]) {
     console.log(`¡¡¡🎆 QUIZ TIME 🎇!!!`);
-    let quiz: HowToQuizInfo = await toponyms.howToQuiz( factId);
+    let quiz: HowToQuizInfo = await toponyms.howToQuiz(factId);
     let fact = quiz.fact;
     const alpha = 'ABCDEFGHIJKLM'.split('');
 
@@ -72,7 +72,7 @@ async function administerQuiz(doneQuizzing:DoneQuizzingFunction, factId: string,
     }
     info.hoursWaited = elapsedHours(start);
 
-    await doneQuizzing( factId, allUpdates, info);
+    await doneQuizzing(factId, allUpdates, info);
 
     if (result) { console.log('✅✅✅!'); }
     else { console.log('❌❌❌', fact); }

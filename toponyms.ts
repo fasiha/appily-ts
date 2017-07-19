@@ -5,10 +5,10 @@ import { ebisu, EbisuObject } from "./ebisu";
 import { furiganaStringToReading, parseMarkdownLinkRuby, furiganaStringToPlain, Furigana, Ruby } from "./ruby";
 import { uncachedUrlFetch, elapsedHours, all, concatMap } from "./utils";
 
-export const toponyms: FactDb = { whatToLearn, howToQuiz, stripFactIdOfSubfact , factToFactIds};
+export const toponyms: FactDb = { whatToLearn, howToQuiz, stripFactIdOfSubfact, factToFactIds };
 
 
- function stripFactIdOfSubfact(factId: string): string {
+function stripFactIdOfSubfact(factId: string): string {
     return factId.split('-').slice(0, -1).join('');
 }
 
@@ -26,12 +26,12 @@ async function urlToFuriganas(url: string, local: string): Promise<Array<Furigan
 
 export type Fact = Furigana[];
 
- function factToFactIds(word: Fact) {
+function factToFactIds(word: Fact) {
     let plain = furiganaStringToPlain(word);
     return [`${plain}-kanji`, `${plain}-reading`];
 }
 
- async function whatToLearn(knownFactIds: string[]): Promise<Fact> {
+async function whatToLearn(knownFactIds: string[]): Promise<Fact> {
     const allFacts = await allFactsProm;
     const availableFactIds = new Set(concatMap(allFacts, factToFactIds));
     const knownIdsSet = new Set(knownFactIds.filter(s => availableFactIds.has(s)));
@@ -42,7 +42,7 @@ export interface HowToQuizInfo {
     fact: Fact;
     confusers?: Fact[];
 };
- async function howToQuiz(factId: string): Promise<HowToQuizInfo> {
+async function howToQuiz(factId: string): Promise<HowToQuizInfo> {
     let allFacts: Array<Furigana[]> = await allFactsProm;
     let plain0 = stripFactIdOfSubfact(factId);
     let fact = allFacts.find(fact => furiganaStringToPlain(fact) === plain0);

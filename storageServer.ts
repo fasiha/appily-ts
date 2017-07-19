@@ -150,5 +150,5 @@ export interface FactDb {
     whatToLearn: (knownFactIds: string[]) => Promise<any>;
     howToQuiz: (factId: string) => Promise<any>
     stripFactIdOfSubfact: (factId: string) => string;
-    factToFactIds: (fact:any)=> string[];
+    factToFactIds: (fact: any) => string[];
 }

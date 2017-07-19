@@ -16,14 +16,14 @@ let docid2module: Map<string, FactDbCli> = new Map([["toponyms", toponymsCli], [
 
 
 function makeSubmitFunction(db, user, docId) {
-    const f:SubmitFunction = async function(factId: string, ebisuObject: EbisuObject, updateObject: any) : Promise<void>{
-        return submit(db, user, docId,factId, ebisuObject, updateObject);
+    const f: SubmitFunction = async function(factId: string, ebisuObject: EbisuObject, updateObject: any): Promise<void> {
+        return submit(db, user, docId, factId, ebisuObject, updateObject);
     };
     return f;
 }
 
 function makeDoneQuizzingFunction(db, user, docId) {
-    const g:DoneQuizzingFunction = async function(factId: string, allUpdates: FactUpdate[], info:any) : Promise<void>{
+    const g: DoneQuizzingFunction = async function(factId: string, allUpdates: FactUpdate[], info: any): Promise<void> {
         return doneQuizzing(db, user, docId, factId, allUpdates, info);
     };
     return g;
