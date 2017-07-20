@@ -8,9 +8,8 @@ import { furiganaStringToPlain, parseJmdictFurigana } from "./ruby";
 export const tono5k: FactDb = { stripFactIdOfSubfact, whatToLearn, howToQuiz, factToFactIds };
 
 const TONO_URL = "https://raw.githubusercontent.com/fasiha/tono-yamazaki-maekawa/master/tono.json";
-const TONO_LOCAL = 'tono.json';
 
-const allFactsProm: Promise<Tono[]> = urlToFacts(TONO_URL, TONO_LOCAL);
+const allFactsProm: Promise<Tono[]> = urlToFacts(TONO_URL);
 const availableFactIdsProm: Promise<Set<string>> = allFactsProm.then(allFacts => new Set(concatMap(allFacts, factToFactIds)));
 const allFactsWithKanjiProm = allFactsProm.then(allFacts => allFacts.filter((fact: Tono) => fact.kanjis.length > 0));
 
@@ -29,7 +28,7 @@ export interface Tono {
     register?: string;
 }
 
-async function urlToFacts(url: string, local: string): Promise<Tono[]> {
+async function urlToFacts(url: string): Promise<Tono[]> {
     let json: Tono[] = JSON.parse(await uncachedUrlFetch(url));
     return json.map(tono => {
         tono.kanjis = dedupeViaSets(tono.kanjis.map(k => furiganaStringToPlain(parseJmdictFurigana(k))));
@@ -47,7 +46,7 @@ function factToFactIds(fact: Tono): string[] {
 
 async function whatToLearn(knownFactIds: string[]): Promise<Tono> {
     const allFacts = await allFactsProm;
-    const availableFactIds = new Set(concatMap(allFacts, factToFactIds));
+    const availableFactIds = await availableFactIdsProm;
     const knownIdsSet = new Set(knownFactIds.filter(s => availableFactIds.has(s)));
 
     // Only look for the following parts of speech:

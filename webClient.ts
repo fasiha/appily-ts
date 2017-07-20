@@ -18,7 +18,12 @@ import { WhatToLearnInfo, WhatToQuizInfo, FactDbCycle } from "./cycleInterfaces"
 // Import all FactDb-implementing modules, then add them to the docid2module map!
 import { toponymsCyclejs } from "./toponyms-cyclejs";
 import { tono5kCyclejs } from "./tono5k-cyclejs";
-const docid2module: Map<string, FactDbCycle> = new Map([["toponyms", toponymsCyclejs], ["tono5k", tono5kCyclejs]]);
+import { scramblerCyclejs } from "./scrambler-cyclejs";
+const docid2module: Map<string, FactDbCycle> = new Map([
+    ["toponyms", toponymsCyclejs],
+    ["tono5k", tono5kCyclejs],
+    ["scrambler", scramblerCyclejs]
+]);
 
 const USER = "ammy";
 const PROB_THRESH = 0.5;
@@ -53,10 +58,11 @@ async function whatToQuiz(db, user: string, soleDocId: string = ''): Promise<Wha
         const factdb = docid2module.get(docId);
         const plain0 = factdb.stripFactIdOfSubfact(update0.factId);
         const allRelatedUpdates = await xstreamToPromise(omitNonlatestUpdates(db, makeLeveldbOpts(user, docId, plain0, true)));
-        // const quizInfo = await factdb.howToQuiz(user, docId, update0.factId, allRelatedUpdates);
-        return { risky: true, /*quizInfo,*/ prob: prob0, update: update0, allRelatedUpdates, factId: update0.factId, docId, startTime: new Date() };
+        return { risky: true, prob: prob0, update: update0, allRelatedUpdates, factId: update0.factId, docId, startTime: new Date() };
+    } else if (prob0 && update0) {
+        return { risky: false, prob: prob0, update: update0, docId: update0.docId };
     }
-    return { risky: false, prob: prob0, update: update0, docId: update0.docId };
+    return { risky: false, prob: prob0, update: update0 };
 }
 
 
@@ -92,7 +98,7 @@ function main(sources) {
     const sinks = Array.from(docid2module.entries()).map(([docId, mod]) => {
         const all = isolate(mod.makeDOMStream)({
             DOM: sources.DOM,
-            quiz: quiz$.filter(quiz => quiz && quiz.docId === docId),
+            quiz: quiz$.filter(quiz => quiz && quiz.risky && quiz.docId === docId),
             known: docIdModToKnownStream(docId, mod)
         });
         all.learned.addListener({ next: fact => doneLearning(USER, docId, fact) });

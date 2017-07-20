@@ -6,7 +6,7 @@ export interface WhatToQuizInfo {
     update: FactUpdate;
     risky: boolean;
     quizInfo?: any;
-    docId: string;
+    docId?: string;
     allRelatedUpdates?: FactUpdate[];
     factId?: string;
     startTime?: Date;
