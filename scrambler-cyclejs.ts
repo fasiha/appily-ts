@@ -14,7 +14,7 @@ export const scramblerCyclejs: FactDbCycle = {
     factToFactIds: scrambler.factToFactIds
 };
 
-function quizToDOM(quiz: WhatToQuizInfo): VNode {
+function quizToDOM(quiz: WhatToQuizInfo, answer: string): VNode {
     const factId = quiz.factId;
     const quizInfo: HowToQuizInfo = quiz.quizInfo;
     const fact: Fact = quizInfo.fact;
@@ -26,6 +26,11 @@ function quizToDOM(quiz: WhatToQuizInfo): VNode {
     vec.push(form('.answer-form', { attrs: { autocomplete: "off", action: 'javascript:void(0);' } },
         [input('#answer-text', { type: "text", placeholder: "Separate by spaces or commas" }),
         button('#answer-submit', 'Submit')]));
+
+    const idxs = answer.split(/\D+/).map(s => parseFloat(s) - 1);
+    const scrambled = quizInfo.scrambled;
+    const reconstructed = idxs.map(i => scrambled[i]).join('');
+    vec.push(p(`So far: 「${reconstructed}」.`))
 
     return div(vec);
 }
@@ -65,7 +70,10 @@ function makeDOMStream(sources: CycleSources): CycleSinks {
     const known$ = sources.known;
     // quiz$.addListener({ next: x => console.log('quiz3', x) })
 
-    const quizDom$ = quiz$.map(quiz => quiz && quiz.risky ? quizToDOM(quiz) : null);
+
+    const typing$ = sources.DOM.select('#answer-text').events('input').map(e => e.target.value).startWith('') as MemoryStream<string>;
+    const quizDom$ = xs.combine(quiz$, typing$).map(([quiz, answer]) => quiz && quiz.risky ? quizToDOM(quiz, answer) : null);
+
     const answerButton$ = sources.DOM.select('form').events('submit').map(e => {
         e.preventDefault();
         var node = (document.querySelector('#answer-text') as any);
