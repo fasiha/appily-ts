@@ -27,6 +27,8 @@
     "express": "^4.15.3",
     "express-pouchdb": "^2.3.7",
     "lodash": "^4.17.4",
+    "lodash.samplesize": "^4.2.0",
+    "lodash.shuffle": "^4.2.0",
     "node-fetch": "^1.7.1",
     "pouchdb": "^6.3.4",
     "pouchdb-adapter-node-websql": "^6.3.4",
@@ -38,6 +40,9 @@
   },
   "devDependencies": {
     "browserify": "^14.4.0",
+    "browserify-size": "^1.1.0",
+    "google-closure-compiler-js": "^20170626.0.0",
+    "increase-memory-limit": "^1.0.1",
     "pouchdb-fauxton": "^0.0.6",
     "pouchdb-server": "^2.3.7"
   }

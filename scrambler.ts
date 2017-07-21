@@ -1,4 +1,4 @@
-import { shuffle } from "lodash";
+const shuffle = require('lodash.shuffle');
 
 import { FactUpdate, FactDb } from "./storageServer";
 import { ebisu, EbisuObject } from "./ebisu";
