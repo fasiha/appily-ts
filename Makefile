@@ -4,3 +4,5 @@ client/webClient.js: webClient.js *-cyclejs.js *.js
 watch:
 	fswatch -0 -o -l 0.1 webClient.js *-cyclejs.js *.js | xargs -0 -n 1 -I {} make
 
+clean:
+	rmtrash pouch__all_dbs__ _users _replicator config.json log.txt client/webClient.js

@@ -25,7 +25,7 @@ const docid2module: Map<string, FactDbCycle> = new Map([
 ]);
 
 const USER = "ammy";
-const PROB_THRESH = 0.9995;
+const PROB_THRESH = 0.25;
 const newlyLearned = ebisu.defaultModel(0.25, 2.5);
 
 
@@ -34,7 +34,7 @@ const newlyLearned = ebisu.defaultModel(0.25, 2.5);
 const TOP_URL = 'http://127.0.0.1:3001';
 PouchDB.plugin(require('pouchdb-upsert'));
 type Db = PouchDB.Database<{}>;
-let db: Db = new PouchDB('${TOP_URL}/db/mypouchlevel');
+let db: Db = new PouchDB(`${TOP_URL}/db/mypouchlevel`);
 
 
 // Wrapper around all fact databases
