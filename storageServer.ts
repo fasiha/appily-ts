@@ -3,7 +3,7 @@ import xs from 'xstream';
 
 import { Db } from "./diskPouchDb";
 import { ebisu, EbisuObject } from "./ebisu";
-import { elapsedHours } from "./utils";
+import { elapsedHours, utoa } from "./utils";
 
 export interface FactUpdate {
     user: string;
@@ -28,11 +28,6 @@ function upsert(db, docId: string, diffFunc) {
     return db.upsert(docId, diffFunc);
 }
 
-const mybtoa = typeof window === 'undefined' ? require('btoa') : window.btoa;
-function tob64(s: string): string {
-    return mybtoa(unescape(encodeURIComponent(s)));
-}
-
 export async function submit(db: Db, user: string, docId: string, factId: string, ebisuObject: EbisuObject, updateObject = {}) {
     let createdAt: string = (new Date()).toISOString();
     let _id = createFactUpdateKey(user, docId, factId);
@@ -51,7 +46,7 @@ export async function submit(db: Db, user: string, docId: string, factId: string
         if (!old._attachments) {
             old._attachments = {};
         }
-        old._attachments[createdAt] = { content_type: 'text/plain', data: tob64(JSON.stringify(u)) };
+        old._attachments[createdAt] = { content_type: 'text/plain', data: utoa(JSON.stringify(u)) };
 
         return old;
     });

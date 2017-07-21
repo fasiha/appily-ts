@@ -90,3 +90,14 @@ export function xstreamToPromise<T>(x: xs<T>): Promise<T[]> {
             });
     });
 }
+
+const mybtoa = typeof window === 'undefined' ? require('btoa') : window.btoa;
+const myatob = typeof window === 'undefined' ? require('atob') : window.atob;
+
+export function utoa(unicode: string): string {
+    return mybtoa(encodeURIComponent(unicode));
+}
+
+export function atou(ascii: string): string {
+    return decodeURIComponent(myatob(ascii));
+}

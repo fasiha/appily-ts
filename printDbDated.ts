@@ -1,10 +1,6 @@
 import { db } from "./diskPouchDb";
-import { xstreamToPromise } from "./utils";
+import { xstreamToPromise, atou } from "./utils";
 const atob = require('atob');
-
-function atou(str) {
-    return decodeURIComponent(escape(atob(str)));
-}
 
 function expandAtachments(doc) {
     if (doc._attachments) {
@@ -22,7 +18,7 @@ function vals(o) {
 async function printer() {
     var docs = (await db.allDocs({ include_docs: true, attachments: true })).rows.map(o => o.doc);
     var att = flatten(docs.map(expandAtachments).map(o => vals(o._attachments)));
-    att.sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt))
+    att.sort((a, b) => (new Date(a.createdAt) as any) - (new Date(b.createdAt) as any))
     console.log(att);
 }
 printer();
