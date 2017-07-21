@@ -1,5 +1,4 @@
-import bluebird = require('bluebird');
-
+import PouchDB = require('pouchdb');
 import xs from 'xstream';
 import { MemoryStream } from 'xstream';
 import isolate from '@cycle/isolate';
@@ -8,8 +7,8 @@ import { div, button, p, ol, li, span, input, form, makeDOMDriver, VNode } from 
 import sampleCombine from 'xstream/extra/sampleCombine'
 
 import {
-    FactUpdate, getMostForgottenFact, omitNonlatestUpdates, getKnownFactIds,
-    makeLeveldbOpts, submit, doneQuizzing, FactDb
+    FactDb, FactUpdate, getMostForgottenFact, getKnownFactIds,
+    makeLeveldbOpts, submit, doneQuizzing, allDocs
 } from "./storageServer";
 import { EbisuObject, ebisu } from "./ebisu";
 import { xstreamToPromise, endsWith, elapsedHours } from "./utils";
@@ -20,8 +19,8 @@ import { toponymsCyclejs } from "./toponyms-cyclejs";
 import { tono5kCyclejs } from "./tono5k-cyclejs";
 import { scramblerCyclejs } from "./scrambler-cyclejs";
 const docid2module: Map<string, FactDbCycle> = new Map([
-    // ["toponyms", toponymsCyclejs],
-    // ["tono5k", tono5kCyclejs],
+    ["toponyms", toponymsCyclejs],
+    ["tono5k", tono5kCyclejs],
     ["scrambler", scramblerCyclejs]
 ]);
 
@@ -29,20 +28,14 @@ const USER = "ammy";
 const PROB_THRESH = 0.9995;
 const newlyLearned = ebisu.defaultModel(0.25, 2.5);
 
+
 // Database
 
-type Db = any;
+const TOP_URL = 'http://127.0.0.1:3001';
+PouchDB.plugin(require('pouchdb-upsert'));
+type Db = PouchDB.Database<{}>;
+let db: Db = new PouchDB('${TOP_URL}/db/mypouchlevel');
 
-const shoe = require('shoe');
-const multilevel = require('multilevel');
-// const db: Db = multilevel.client();
-
-bluebird.promisifyAll(db);
-
-const stream = shoe('/api/ml', function() {
-    console.log("Connected.");
-});
-stream.pipe(db.createRpcStream()).pipe(stream);
 
 // Wrapper around all fact databases
 
@@ -52,13 +45,14 @@ async function webSubmit(user: string, docId: string, factId: string, ebisuObjec
 
 async function whatToQuiz(db, user: string, soleDocId: string = ''): Promise<WhatToQuizInfo> {
 
-    let [update0, prob0]: [FactUpdate, number] = (await xstreamToPromise(getMostForgottenFact(db, makeLeveldbOpts(user, soleDocId))))[0];
+    let [update0, prob0]: [FactUpdate, number] = await getMostForgottenFact(db, makeLeveldbOpts(user, soleDocId));
 
     if (prob0 && prob0 <= PROB_THRESH && docid2module.has(update0.docId)) {
         const docId = update0.docId;
         const factdb = docid2module.get(docId);
         const plain0 = factdb.stripFactIdOfSubfact(update0.factId);
-        const allRelatedUpdates = await xstreamToPromise(omitNonlatestUpdates(db, makeLeveldbOpts(user, docId, plain0, true)));
+        const allRelatedUpdates = await allDocs(db, makeLeveldbOpts(USER, docId, plain0, true)) as FactUpdate[];
+
         return { risky: true, prob: prob0, update: update0, allRelatedUpdates, factId: update0.factId, docId, startTime: new Date() };
     } else if (prob0 && update0) {
         return { risky: false, prob: prob0, update: update0, docId: update0.docId };
@@ -91,7 +85,7 @@ function main(sources) {
     function docIdModToKnownStream(docId, mod) {
         return quiz$
             .filter(q => q && !q.risky)
-            .map(_ => xs.fromPromise(xstreamToPromise(getKnownFactIds(db, makeLeveldbOpts(USER, docId)))))
+            .map(_ => xs.fromPromise(getKnownFactIds(db, makeLeveldbOpts(USER, docId))))
             .flatten()
             .remember();
     }
