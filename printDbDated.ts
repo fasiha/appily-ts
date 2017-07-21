@@ -15,13 +15,18 @@ function vals(o) {
     return Object.keys(o).map(k => o[k])
 }
 
-async function printer() {
+async function printer(summary: boolean = true) {
     var docs = (await db.allDocs({ include_docs: true, attachments: true })).rows.map(o => o.doc);
+    if (!summary) {
+        console.log(JSON.stringify(docs, null, 1));
+        return;
+    }
     var att = flatten(docs.map(expandAtachments).map(o => vals(o._attachments)));
     att.sort((a, b) => (new Date(a.createdAt) as any) - (new Date(b.createdAt) as any))
-    console.log(att);
+    console.log(att.map(o => JSON.stringify(o)).join('\n'));
 }
 printer();
+
 
 function flatten(v) {
     return v.reduce((prev, next) => prev.concat(next), []);

@@ -28,8 +28,8 @@ function upsert(db, docId: string, diffFunc) {
     return db.upsert(docId, diffFunc);
 }
 
-export async function submit(db: Db, user: string, docId: string, factId: string, ebisuObject: EbisuObject, updateObject = {}) {
-    let createdAt: string = (new Date()).toISOString();
+export async function submit(db: Db, user: string, docId: string, factId: string, ebisuObject: EbisuObject, updateObject = {}, createdAt: string = '') {
+    createdAt = createdAt || (new Date()).toISOString();
     let _id = createFactUpdateKey(user, docId, factId);
     let u: FactUpdate = { _id, user, docId, factId, createdAt, ebisuObject, updateObject };
 
