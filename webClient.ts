@@ -20,13 +20,13 @@ import { toponymsCyclejs } from "./toponyms-cyclejs";
 import { tono5kCyclejs } from "./tono5k-cyclejs";
 import { scramblerCyclejs } from "./scrambler-cyclejs";
 const docid2module: Map<string, FactDbCycle> = new Map([
-    ["toponyms", toponymsCyclejs],
-    ["tono5k", tono5kCyclejs],
+    // ["toponyms", toponymsCyclejs],
+    // ["tono5k", tono5kCyclejs],
     ["scrambler", scramblerCyclejs]
 ]);
 
 const USER = "ammy";
-const PROB_THRESH = 0.5;
+const PROB_THRESH = 0.9995;
 const newlyLearned = ebisu.defaultModel(0.25, 2.5);
 
 // Database
@@ -35,7 +35,7 @@ type Db = any;
 
 const shoe = require('shoe');
 const multilevel = require('multilevel');
-const db: Db = multilevel.client();
+// const db: Db = multilevel.client();
 
 bluebird.promisifyAll(db);
 
@@ -51,6 +51,7 @@ async function webSubmit(user: string, docId: string, factId: string, ebisuObjec
 }
 
 async function whatToQuiz(db, user: string, soleDocId: string = ''): Promise<WhatToQuizInfo> {
+
     let [update0, prob0]: [FactUpdate, number] = (await xstreamToPromise(getMostForgottenFact(db, makeLeveldbOpts(user, soleDocId))))[0];
 
     if (prob0 && prob0 <= PROB_THRESH && docid2module.has(update0.docId)) {

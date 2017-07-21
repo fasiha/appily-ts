@@ -1,8 +1,8 @@
 import {
-    FactUpdate, getMostForgottenFact, omitNonlatestUpdates, getKnownFactIds,
-    makeLeveldbOpts, submit, FactDb, doneQuizzing
+    FactUpdate, getMostForgottenFact, getKnownFactIds,
+    makeLeveldbOpts, submit, FactDb, doneQuizzing, allDocs
 } from "./storageServer";
-import { db } from "./diskDb";
+import { db, Db } from "./diskPouchDb";
 import { ebisu, EbisuObject } from "./ebisu";
 import { xstreamToPromise, cliPrompt, elapsedHours } from "./utils";
 import { FactDbCli, SubmitFunction, DoneQuizzingFunction } from "./cliInterface";
@@ -34,23 +34,23 @@ import xs from 'xstream';
 async function loop(SOLE_DOCID: string = '', probThreshold: number = 0.5) {
     const levelOpts = makeLeveldbOpts(USER, SOLE_DOCID);
 
-    let [update0, prob0]: [FactUpdate, number] = (await xstreamToPromise(getMostForgottenFact(db, levelOpts)))[0];
+    let [update0, prob0]: [FactUpdate, number] = await getMostForgottenFact(db, levelOpts);
     if (prob0 && prob0 <= probThreshold) {
         const docId = update0.docId;
         const factdb = docid2module.get(docId);
         const plain0 = factdb.stripFactIdOfSubfact(update0.factId);
-        const allRelatedUpdates = await xstreamToPromise(omitNonlatestUpdates(db, makeLeveldbOpts(USER, docId, plain0, true)));
+        const allRelatedUpdates = await allDocs(db, makeLeveldbOpts(USER, docId, plain0, true)) as FactUpdate[];
 
         console.log("Review!", prob0);
         await factdb.administerQuiz(makeDoneQuizzingFunction(db, USER, docId), update0.factId, allRelatedUpdates);
     } else {
         if (SOLE_DOCID) {
             const factdb = docid2module.get(SOLE_DOCID);
-            await factdb.findAndLearn(makeSubmitFunction(db, USER, SOLE_DOCID), await xstreamToPromise(getKnownFactIds(db, makeLeveldbOpts(USER, SOLE_DOCID))));
+            await factdb.findAndLearn(makeSubmitFunction(db, USER, SOLE_DOCID), await getKnownFactIds(db, makeLeveldbOpts(USER, SOLE_DOCID)));
         } else {
             // FIXME why Array.from required here? TypeScript problem?
             for (const [docId, factdb] of Array.from(docid2module.entries())) {
-                await factdb.findAndLearn(makeSubmitFunction(db, USER, docId), await xstreamToPromise(getKnownFactIds(db, makeLeveldbOpts(USER, docId))));
+                await factdb.findAndLearn(makeSubmitFunction(db, USER, docId), await getKnownFactIds(db, makeLeveldbOpts(USER, docId)));
             }
         }
     }

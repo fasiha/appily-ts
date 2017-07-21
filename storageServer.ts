@@ -1,7 +1,7 @@
-import levelup = require("levelup");
-// import Kefir = require("kefir");
+import PouchDB = require('pouchdb');
 import xs from 'xstream';
 
+import { Db } from "./diskPouchDb";
 import { ebisu, EbisuObject } from "./ebisu";
 import { elapsedHours } from "./utils";
 
@@ -9,51 +9,49 @@ export interface FactUpdate {
     user: string;
     docId: string;
     factId: string;
-    createdAt: Date;
+    createdAt: string;
     ebisuObject: EbisuObject;
     updateObject?: any;
+    _id?: string;
+    _attachments?: any;
 }
 
-type Db = levelup.LevelUpBase<levelup.Batch>;
 interface KeyVal { key: string, value: string };
 
-function createFactUpdateKey(user: string, docId: string, factId: string, createdAt: Date): string {
-    return `${user}::${docId}::${factId}::${createdAt.toISOString()}`;
+const ID_PREFIX_FACT = 'v1::';
+
+function createFactUpdateKey(user: string, docId: string, factId: string): string {
+    return `${ID_PREFIX_FACT}${user}::${docId}::${factId}`;
+}
+
+function upsert(db, docId: string, diffFunc) {
+    return db.upsert(docId, diffFunc);
 }
 
 export async function submit(db: Db, user: string, docId: string, factId: string, ebisuObject: EbisuObject, updateObject = {}) {
-    let createdAt = new Date();
-    let key = createFactUpdateKey(user, docId, factId, createdAt);
-    let u: FactUpdate = { user, docId, factId, createdAt, ebisuObject, updateObject };
-    try {
-        await (db as any).putAsync(key, JSON.stringify(u));
-    } catch (e) {
-        console.error("Error", e);
-    }
-}
+    let createdAt: string = (new Date()).toISOString();
+    let _id = createFactUpdateKey(user, docId, factId);
+    let u: FactUpdate = { _id, user, docId, factId, createdAt, ebisuObject, updateObject };
 
-function levelStreamToXstream(levelStream) {
-    return xs.create({
-        start: listener => {
-            levelStream.on('data', data => listener.next(data));
-            levelStream.on('close', () => listener.complete());
-        },
-        stop: () => { }
+    upsert(db, _id, old => {
+        if (old._id) {
+            // just update
+            old.createdAt = createdAt;
+            old.ebisuObject = ebisuObject;
+            old.updateObject = updateObject;
+        } else {
+            // brand new
+            old = u;
+        }
+        old._attachments[createdAt] = u;
+        return old;
     });
 }
 
-export function leveldbToKeyStream(db: Db, opts?: any): xs<string> {
-    return levelStreamToXstream(db.createKeyStream(opts)) as xs<string>;
-}
-
-export function leveldbToStream(db: Db, opts?: any): xs<KeyVal> {
-    return levelStreamToXstream(db.createReadStream(opts)) as xs<KeyVal>;
-}
-
-export function makeLeveldbOpts(user: string, docId: string = '', factId: string = '', factIdFragment: boolean = true) {
-    let ret = (a: string, b: string) => ({ gte: a, lt: b });
-    let a: string = `${user}`;
-    let b: string = `${user}`;
+export function makeLeveldbOpts(user: string, docId: string = '', factId: string = '', factIdFragment: boolean = true, include_docs: boolean = true) {
+    let ret = (a: string, b: string) => ({ startKey: a, endKey: b, inclusive_end: false, include_docs });
+    let a: string = `${ID_PREFIX_FACT}${user}`;
+    let b: string = `${ID_PREFIX_FACT}${user}`;
     if (docId.length) {
         a += `::${docId}`;
         b += `::${docId}`;
@@ -80,49 +78,53 @@ export function makeLeveldbOpts(user: string, docId: string = '', factId: string
     return ret(a, b);
 }
 
-import dropRepeats from 'xstream/extra/dropRepeats'
-
-export function omitNonlatestUpdates(db: Db, opts: any = {}): xs<FactUpdate> {
-    opts.reverse = true;
-
-    // a, b are KeyVal but xstream gets confused with these types
-    const eq = (a, b) => a.key.split('::')[2] === b.key.split('::')[2];
-    return leveldbToStream(db, opts).compose(dropRepeats(eq))
-        .map((x: KeyVal) => JSON.parse(x.value) as FactUpdate);
+async function allDocsReduce(db: Db, opts, func, init, limit: number = 25) {
+    opts = Object.assign({}, opts); // copy
+    opts.limit = limit;
+    while (1) {
+        let res = await db.allDocs(opts);
+        if (res.rows.length === 0) {
+            return init;
+        }
+        init = res.rows.reduce(func, init);
+        opts.startkey = res.rows[res.rows.length - 1].key;
+        opts.skip = 1;
+    }
 }
 
-export function getMostForgottenFact(db: Db, opts: any = {}): xs<[FactUpdate, number]> {
+const factUpdateToProb = (f: FactUpdate, dnow: Date) => {
+    // JSON converts Infinity to `null` :-/
+    if (f.ebisuObject[2] && isFinite(f.ebisuObject[2])) {
+        return ebisu.predictRecall(f.ebisuObject, elapsedHours(new Date(f.createdAt), dnow));
+    }
+    return 1;
+};
+
+export async function getMostForgottenFact(db: Db, opts: any = {}): Promise<[FactUpdate, number]> {
     const dnow = new Date();
-    const elapsedHours = (d: Date) => ((dnow as any) - (d as any)) / 3600e3 as number;
-    const factUpdateToProb = (f: FactUpdate) => {
-        // JSON converts Infinity to `null` :-/
-        if (f.ebisuObject[2] && isFinite(f.ebisuObject[2])) {
-            return ebisu.predictRecall(f.ebisuObject, elapsedHours(new Date(f.createdAt)));
-        }
-        return 1;
-    };
-    let orig = omitNonlatestUpdates(db, opts);
-    return orig.fold(([prev, probPrev]: [FactUpdate, number], next) => {
+    const reducer = ([prev, probPrev]: [FactUpdate, number], next): [FactUpdate, number] => {
+        const doc = next.doc as FactUpdate;
         if (!prev) {
-            let prob = factUpdateToProb(next);
-            return [next, prob];
+            let prob = factUpdateToProb(next.doc as FactUpdate, dnow);
+            return [doc, prob];
         }
-        let probNext = factUpdateToProb(next);
-        if (probNext < probPrev) { return [next, probNext]; }
+        let probNext = factUpdateToProb(next.doc as FactUpdate, dnow);
+        if (probNext < probPrev) { return [doc, probNext]; }
         return [prev, probPrev];
-    }, [null, null])
-        .last() as xs<[FactUpdate, number]>;
+    };
+    const init = [null, null];
+    return allDocsReduce(db, opts, reducer, init, 50)
 }
 
-export function getKnownFactIds(db: Db, opts: any = {}) {
-    let keys = leveldbToKeyStream(db, opts);
-    return keys.map(s => s.split('::')[2]).compose(dropRepeats());
+export async function getKnownFactIds(db: Db, opts: any = {}) {
+    opts = Object.assign({}, opts); // copy
+    opts.include_docs = false;
+    let keys = await db.allDocs(opts);
+    return keys.rows.map(s => s.id.split('::')[3]);
 }
 
-
-const multilevel = require('multilevel');
-export function makeShoeInit(db: Db) {
-    return (function(stream) { stream.pipe(multilevel.server(db)).pipe(stream); });
+export async function allDocs(db: Db, opts: any) {
+    return (await db.allDocs(opts)).rows.map(x => x.doc);
 }
 
 //
