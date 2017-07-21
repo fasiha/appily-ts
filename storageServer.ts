@@ -28,12 +28,18 @@ function upsert(db, docId: string, diffFunc) {
     return db.upsert(docId, diffFunc);
 }
 
+interface UpsertResult {
+    id: string;
+    rev: string;
+    touched?: boolean;
+    count?: number;
+}
 export async function submit(db: Db, user: string, docId: string, factId: string, ebisuObject: EbisuObject, updateObject = {}, createdAt: string = '') {
     createdAt = createdAt || (new Date()).toISOString();
     let _id = createFactUpdateKey(user, docId, factId);
     let u: FactUpdate = { _id, user, docId, factId, createdAt, ebisuObject, updateObject };
 
-    upsert(db, _id, old => {
+    /*const upsertResult = await*/ upsert(db, _id, old => {
         if (old._id) {
             // just update
             old.createdAt = createdAt;
@@ -47,9 +53,9 @@ export async function submit(db: Db, user: string, docId: string, factId: string
             old._attachments = {};
         }
         old._attachments[createdAt] = { content_type: 'text/plain', data: utoa(JSON.stringify(u)) };
-
         return old;
-    });
+    }) as UpsertResult;
+    // db.putAttachment(upsertResult.id, createdAt, upsertResult.rev, utoa(JSON.stringify(u)), 'text/plain');
 }
 
 export function makeLeveldbOpts(user: string, docId: string = '', factId: string = '', factIdFragment: boolean = true, include_docs: boolean = true) {

@@ -16,7 +16,7 @@ function vals(o) {
 }
 
 async function printer(summary: boolean = true) {
-    var docs = (await db.allDocs({ include_docs: true, attachments: true })).rows.map(o => o.doc);
+    var docs = (await db.allDocs({ include_docs: true, attachments: true, conflicts: true })).rows.map(o => o.doc);
     if (!summary) {
         console.log(JSON.stringify(docs, null, 1));
         return;
@@ -26,6 +26,7 @@ async function printer(summary: boolean = true) {
     console.log(att.map(o => JSON.stringify(o)).join('\n'));
 }
 printer();
+// printer(false);
 
 
 function flatten(v) {
