@@ -29,8 +29,6 @@ function makeDoneQuizzingFunction(db, user, docId) {
     return g;
 }
 
-import xs from 'xstream';
-
 async function loop(SOLE_DOCID: string = '', probThreshold: number = 0.5) {
     const levelOpts = makeLeveldbOpts(USER, SOLE_DOCID);
 

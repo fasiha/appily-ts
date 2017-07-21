@@ -28,6 +28,11 @@ function upsert(db, docId: string, diffFunc) {
     return db.upsert(docId, diffFunc);
 }
 
+const mybtoa = typeof window === 'undefined' ? require('btoa') : window.btoa;
+function tob64(s: string): string {
+    return mybtoa(unescape(encodeURIComponent(s)));
+}
+
 export async function submit(db: Db, user: string, docId: string, factId: string, ebisuObject: EbisuObject, updateObject = {}) {
     let createdAt: string = (new Date()).toISOString();
     let _id = createFactUpdateKey(user, docId, factId);
@@ -40,16 +45,20 @@ export async function submit(db: Db, user: string, docId: string, factId: string
             old.ebisuObject = ebisuObject;
             old.updateObject = updateObject;
         } else {
-            // brand new
-            old = u;
+            // brand new. Copy to avoid messing up _attachment
+            old = Object.assign({}, u);
         }
-        old._attachments[createdAt] = u;
+        if (!old._attachments) {
+            old._attachments = {};
+        }
+        old._attachments[createdAt] = { content_type: 'text/plain', data: tob64(JSON.stringify(u)) };
+
         return old;
     });
 }
 
 export function makeLeveldbOpts(user: string, docId: string = '', factId: string = '', factIdFragment: boolean = true, include_docs: boolean = true) {
-    let ret = (a: string, b: string) => ({ startKey: a, endKey: b, inclusive_end: false, include_docs });
+    let ret = (a: string, b: string) => ({ startkey: a, endkey: b, inclusive_end: false, include_docs });
     let a: string = `${ID_PREFIX_FACT}${user}`;
     let b: string = `${ID_PREFIX_FACT}${user}`;
     if (docId.length) {
@@ -65,7 +74,7 @@ export function makeLeveldbOpts(user: string, docId: string = '', factId: string
         a += `::${factId}`;
         b += `::${factId}`;
         if (factIdFragment) {
-            b += '\uffff';
+            b += '\ufff0';
         } else {
             a += '::';
             b += ';';
@@ -78,7 +87,7 @@ export function makeLeveldbOpts(user: string, docId: string = '', factId: string
     return ret(a, b);
 }
 
-async function allDocsReduce(db: Db, opts, func, init, limit: number = 25) {
+async function allDocsReduce(db: Db, opts, func, init, limit: number = 25, verbose: boolean = false) {
     opts = Object.assign({}, opts); // copy
     opts.limit = limit;
     while (1) {
@@ -89,6 +98,7 @@ async function allDocsReduce(db: Db, opts, func, init, limit: number = 25) {
         init = res.rows.reduce(func, init);
         opts.startkey = res.rows[res.rows.length - 1].key;
         opts.skip = 1;
+        if (verbose) { console.log('init', init); }
     }
 }
 
@@ -113,7 +123,8 @@ export async function getMostForgottenFact(db: Db, opts: any = {}): Promise<[Fac
         return [prev, probPrev];
     };
     const init = [null, null];
-    return allDocsReduce(db, opts, reducer, init, 50)
+    // return allDocsReduce(db, opts, reducer, init, 50, true)
+    return (await db.allDocs(opts)).rows.reduce(reducer, init) as [FactUpdate, number];
 }
 
 export async function getKnownFactIds(db: Db, opts: any = {}) {
