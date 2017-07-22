@@ -1,4 +1,4 @@
-import fetch from "node-fetch"; // 
+const fetch = typeof window === 'undefined' ? require('node-fetch') : window.fetch;
 
 export function concatMap<T, U>(arr: T[], f: (x: T) => U[]): U[] {
     let ret = [];
