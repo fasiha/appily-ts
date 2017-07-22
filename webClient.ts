@@ -11,7 +11,7 @@ import {
     makeLeveldbOpts, submit, doneQuizzing, allDocs
 } from "./storageServer";
 import { EbisuObject, ebisu } from "./ebisu";
-import { xstreamToPromise, endsWith, elapsedHours } from "./utils";
+import { endsWith, elapsedHours } from "./utils";
 import { WhatToLearnInfo, WhatToQuizInfo, FactDbCycle } from "./cycleInterfaces";
 
 // Import all FactDb-implementing modules, then add them to the docid2module map!

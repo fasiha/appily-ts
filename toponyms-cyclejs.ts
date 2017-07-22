@@ -1,7 +1,7 @@
 import { WEB_URL, Fact, HowToQuizInfo, toponyms } from "./toponyms";
 import { furiganaStringToReading, parseMarkdownLinkRuby, furiganaStringToPlain, Furigana, Ruby } from "./ruby";
 
-import { xstreamToPromise, endsWith, elapsedHours } from "./utils";
+import { endsWith, elapsedHours } from "./utils";
 import { WhatToQuizInfo, FactDbCycle, WhatToLearnInfo, CycleSinks, CycleSources } from "./cycleInterfaces";
 
 import xs from 'xstream';

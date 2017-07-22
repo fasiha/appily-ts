@@ -1,6 +1,7 @@
 import { FactUpdate, FactDb } from "./storageServer";
 import { EbisuObject, ebisu } from "./ebisu";
-import { cliPrompt, endsWith, elapsedHours } from "./utils";
+import { endsWith, elapsedHours } from "./utils";
+import { cliPrompt } from "./node-utils";
 import { furiganaStringToReading, parseMarkdownLinkRuby, furiganaStringToPlain, Furigana, Ruby } from "./ruby";
 import { WEB_URL, Fact, HowToQuizInfo, toponyms } from "./toponyms";
 import { FactDbCli, SubmitFunction, DoneQuizzingFunction } from "./cliInterface";

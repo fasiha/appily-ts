@@ -4,7 +4,8 @@ import {
 } from "./storageServer";
 import { db, Db } from "./diskPouchDb";
 import { ebisu, EbisuObject } from "./ebisu";
-import { xstreamToPromise, cliPrompt, elapsedHours } from "./utils";
+import { elapsedHours } from "./utils";
+import { cliPrompt } from "./node-utils";
 import { FactDbCli, SubmitFunction, DoneQuizzingFunction } from "./cliInterface";
 
 let USER = "ammy";

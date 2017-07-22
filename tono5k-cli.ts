@@ -1,6 +1,7 @@
 import { FactUpdate, FactDb } from "./storageServer";
 import { EbisuObject, ebisu } from "./ebisu";
-import { cliPrompt, endsWith, elapsedHours } from "./utils";
+import { endsWith, elapsedHours } from "./utils";
+import { cliPrompt } from "./node-utils";
 import { Tono, HowToQuizInfo, tono5k } from "./tono5k";
 import { FactDbCli, SubmitFunction, DoneQuizzingFunction } from "./cliInterface";
 

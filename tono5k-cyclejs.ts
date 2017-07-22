@@ -1,5 +1,5 @@
 import { Tono, HowToQuizInfo, tono5k } from "./tono5k";
-import { xstreamToPromise, endsWith, elapsedHours } from "./utils";
+import { endsWith, elapsedHours } from "./utils";
 import { WhatToQuizInfo, FactDbCycle, WhatToLearnInfo, CycleSinks, CycleSources } from "./cycleInterfaces";
 
 import xs from 'xstream';

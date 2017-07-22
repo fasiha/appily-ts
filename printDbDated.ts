@@ -1,5 +1,5 @@
 import { db } from "./diskPouchDb";
-import { xstreamToPromise, atou } from "./utils";
+import { atou } from "./utils";
 const atob = require('atob');
 
 function expandAtachments(doc) {

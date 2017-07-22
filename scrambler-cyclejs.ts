@@ -1,5 +1,5 @@
 import { Fact, HowToQuizInfo, scrambler } from "./scrambler";
-import { xstreamToPromise, endsWith, elapsedHours } from "./utils";
+import { endsWith, elapsedHours } from "./utils";
 import { WhatToQuizInfo, FactDbCycle, WhatToLearnInfo, CycleSinks, CycleSources } from "./cycleInterfaces";
 
 import xs from 'xstream';
