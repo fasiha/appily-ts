@@ -52,7 +52,7 @@ async function getMostForgottenFact(soleDocId: string): Promise<WhatToQuizInfo> 
     })).json();
     const update = got.update;
     const prob = got.prob;
-    const docId = update.docId;
+    const docId = update && update.docId;
     return { update, prob, docId, risky: prob && prob <= PROB_THRESH && docid2module.has(update.docId), startTime: new Date() };
 }
 

@@ -64,9 +64,9 @@ function checkAnswer([answer, quiz]: [number | string, WhatToQuizInfo]) {
 }
 
 
-function newFactToDom(fact: WhatToLearnInfo): VNode {
+function newFactToDom(fact: any): VNode {
     if (!fact) { return null; }
-    return div([p("Hey! Learn this: " + JSON.stringify(fact.fact)),
+    return div([p("Hey! Learn this: " + JSON.stringify(fact)),
     button("#learned-button", "Learned!")]);
 }
 
