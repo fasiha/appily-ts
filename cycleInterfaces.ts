@@ -5,11 +5,11 @@ export interface WhatToQuizInfo {
     prob: number;
     update: FactUpdate;
     risky: boolean;
+    startTime: Date;
     quizInfo?: any;
     docId?: string;
-    allRelatedUpdates?: FactUpdate[];
-    factId?: string;
-    startTime?: Date;
+    // allRelatedUpdates?: FactUpdate[];
+    // factId?: string;
 };
 
 export interface FactDbCycle {

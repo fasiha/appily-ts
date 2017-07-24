@@ -15,7 +15,7 @@ export const tono5kCyclejs: FactDbCycle = {
 };
 
 function quizToDOM(quiz: WhatToQuizInfo): VNode {
-    const factId = quiz.factId;
+    const factId = quiz.update.factId;
     const quizInfo = quiz.quizInfo;
     const fact: Tono = quizInfo.fact;
     let vec = [];
@@ -72,7 +72,7 @@ function newFactToDom(fact: WhatToLearnInfo): VNode {
 
 function makeDOMStream(sources: CycleSources): CycleSinks {
     const quiz$ = sources.quiz
-        .map((quiz: WhatToQuizInfo) => xs.fromPromise(tono5k.howToQuiz(quiz.factId).then(quizInfo => {
+        .map((quiz: WhatToQuizInfo) => xs.fromPromise(tono5k.howToQuiz(quiz.update.factId).then(quizInfo => {
             quiz.quizInfo = quizInfo;
             return quiz;
         })))

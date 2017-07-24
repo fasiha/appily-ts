@@ -15,7 +15,7 @@ export const scramblerCyclejs: FactDbCycle = {
 };
 
 function quizToDOM(quiz: WhatToQuizInfo, answer: string): VNode {
-    const factId = quiz.factId;
+    const factId = quiz.update.factId;
     const quizInfo: HowToQuizInfo = quiz.quizInfo;
     const fact: Fact = quizInfo.fact;
 
@@ -62,7 +62,7 @@ function newFactToDom(fact: WhatToLearnInfo): VNode {
 
 function makeDOMStream(sources: CycleSources): CycleSinks {
     const quiz$ = sources.quiz
-        .map((quiz: WhatToQuizInfo) => xs.fromPromise(scrambler.howToQuiz(quiz.factId).then(quizInfo => {
+        .map((quiz: WhatToQuizInfo) => xs.fromPromise(scrambler.howToQuiz(quiz.update.factId).then(quizInfo => {
             quiz.quizInfo = quizInfo;
             return quiz;
         })))

@@ -7,10 +7,7 @@ import { run } from '@cycle/run';
 import { div, button, p, ol, li, span, input, form, makeDOMDriver, VNode } from '@cycle/dom';
 import sampleCombine from 'xstream/extra/sampleCombine'
 
-import {
-    FactUpdate, getMostForgottenFact, omitNonlatestUpdates, getKnownFactIds,
-    makeLeveldbOpts, submit, doneQuizzing, FactDb
-} from "./storageServer";
+import { FactUpdate, FactDb, makeLeveldbOpts } from "./storageServer";
 import { EbisuObject, ebisu } from "./ebisu";
 import { xstreamToPromise, endsWith, elapsedHours } from "./utils";
 import { WhatToLearnInfo, WhatToQuizInfo, FactDbCycle } from "./cycleInterfaces";
@@ -25,64 +22,67 @@ const docid2module: Map<string, FactDbCycle> = new Map([
     ["scrambler", scramblerCyclejs]
 ]);
 
-const USER = "ammy";
-const PROB_THRESH = 0.5;
+const PROB_THRESH = 0.995;
 const newlyLearned = ebisu.defaultModel(0.25, 2.5);
 
 // Database
 
-type Db = any;
-
-const shoe = require('shoe');
-const multilevel = require('multilevel');
-const db: Db = multilevel.client();
-
-bluebird.promisifyAll(db);
-
-const stream = shoe('/api/ml', function() {
-    console.log("Connected.");
-});
-stream.pipe(db.createRpcStream()).pipe(stream);
-
 // Wrapper around all fact databases
 
-async function webSubmit(user: string, docId: string, factId: string, ebisuObject: EbisuObject, updateObject: any) {
-    return submit(db, user, docId, factId, ebisuObject, updateObject);
+import { SubmitToServer, MostForgottenToServer, KnownFactIdsToServer, KnownFactIdsFromServer, DoneQuizzingToServer } from "./RestInterfaces";
+
+async function webSubmit(docId: string, factId: string, ebisuObject: EbisuObject, updateObject: any) {
+    const submitting: SubmitToServer = { docId, factId, ebisuObject, updateObject };
+    return fetch('/api/submit', {
+        headers: {
+            // 'Accept': 'application/json',
+            'Content-Type': 'application/json'
+        },
+        method: "POST",
+        body: JSON.stringify(submitting)
+    });
 }
 
-async function whatToQuiz(db, user: string, soleDocId: string = ''): Promise<WhatToQuizInfo> {
-    let [update0, prob0]: [FactUpdate, number] = (await xstreamToPromise(getMostForgottenFact(db, makeLeveldbOpts(user, soleDocId))))[0];
-
-    if (prob0 && prob0 <= PROB_THRESH && docid2module.has(update0.docId)) {
-        const docId = update0.docId;
-        const factdb = docid2module.get(docId);
-        const plain0 = factdb.stripFactIdOfSubfact(update0.factId);
-        const allRelatedUpdates = await xstreamToPromise(omitNonlatestUpdates(db, makeLeveldbOpts(user, docId, plain0, true)));
-        return { risky: true, prob: prob0, update: update0, allRelatedUpdates, factId: update0.factId, docId, startTime: new Date() };
-    } else if (prob0 && update0) {
-        return { risky: false, prob: prob0, update: update0, docId: update0.docId };
-    }
-    return { risky: false, prob: prob0, update: update0 };
+async function getMostForgottenFact(soleDocId: string): Promise<WhatToQuizInfo> {
+    const submitting: MostForgottenToServer = { soleDocId }
+    const got = await (await fetch('/api/mostForgotten', {
+        headers: { 'Content-Type': 'application/json' },
+        method: "POST",
+        body: submitting
+    })).json();
+    const update = got.update;
+    const prob = got.prob;
+    const docId = update.docId;
+    return { update, prob, docId, risky: prob && prob <= PROB_THRESH && docid2module.has(update.docId), startTime: new Date() };
 }
 
 
-
-async function doneLearning(user, docId, fact) {
-    docid2module.get(docId)
-        .factToFactIds(fact)
-        .forEach(factId => webSubmit(user, docId, factId, newlyLearned, { firstLearned: true }));
+async function getKnownFactIds(docId: string): Promise<KnownFactIdsFromServer> {
+    const submitting: KnownFactIdsToServer = { docId };
+    return (await fetch('/api/knownFactIds', {
+        headers: { 'Content-Type': 'application/json' },
+        method: "POST",
+        body: JSON.stringify(submitting)
+    })).json();
 }
 
-function webDoneQuizzing(docId: string, factId: string, allUpdates: FactUpdate[], info: any) {
-    doneQuizzing(db, USER, docId, factId, allUpdates, info)
+async function doneLearning(docId: string, factIds: string[], updateObjects: any[]) {
+    return Promise.all(factIds.map((factId, idx) => webSubmit(docId, factId, newlyLearned, updateObjects[idx])));
 }
 
+function doneQuizzing(docId: string, activelyQuizzedFactId: string, allQuizzedFactIds: string[], infos: any[]) {
+    const submitting: DoneQuizzingToServer = { docId, activelyQuizzedFactId, allQuizzedFactIds, infos };
+    return fetch('/api/doneQuizzing', {
+        headers: { 'Content-Type': 'application/json' },
+        method: "POST",
+        body: JSON.stringify(submitting)
+    });
+}
 function main(sources) {
     const action$ = sources.DOM.select('.hit-me').events('click').mapTo(0) as xs<number>;
 
-    const levelOpts = makeLeveldbOpts(USER);
-
-    const quiz$ = action$.map(_ => xs.fromPromise(whatToQuiz(db, USER, '')))
+    const SOLE_DOCID = '';
+    const quiz$ = action$.map(_ => xs.fromPromise(getMostForgottenFact(SOLE_DOCID)))
         .flatten()
         .remember() as MemoryStream<WhatToQuizInfo>;
     // quiz$.addListener({ next: x => console.log('quiz', x) })
@@ -90,7 +90,7 @@ function main(sources) {
     function docIdModToKnownStream(docId, mod) {
         return quiz$
             .filter(q => q && !q.risky)
-            .map(_ => xs.fromPromise(xstreamToPromise(getKnownFactIds(db, makeLeveldbOpts(USER, docId)))))
+            .map(_ => xs.fromPromise(getKnownFactIds(docId)))
             .flatten()
             .remember();
     }
@@ -101,8 +101,19 @@ function main(sources) {
             quiz: quiz$.filter(quiz => quiz && quiz.risky && quiz.docId === docId),
             known: docIdModToKnownStream(docId, mod)
         });
-        all.learned.addListener({ next: fact => doneLearning(USER, docId, fact) });
-        all.quizzed.addListener({ next: ([ans, quiz, info]) => webDoneQuizzing(quiz.update.docId, quiz.factId, quiz.allRelatedUpdates, info) })
+        all.learned.addListener({
+            next: fact => {
+                const relateds = docid2module.get(docId).factToFactIds(fact);
+                doneLearning(docId, relateds, relateds.map(_ => ({ firstLearned: true })));
+            }
+        });
+        all.quizzed.addListener({
+            next: ([ans, quiz, info]) => {
+                const docId = quiz.update.docId;
+                const fact = quiz.quizInfo.fact;
+                doneQuizzing(docId, quiz.factId, docid2module.get(docId).factToFactIds(fact), [info]);
+            }
+        })
         return all;
     });
     const allDom$ = xs.merge(...sinks.map(o => o.DOM));

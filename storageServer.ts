@@ -91,26 +91,19 @@ export function omitNonlatestUpdates(db: Db, opts: any = {}): xs<FactUpdate> {
         .map((x: KeyVal) => JSON.parse(x.value) as FactUpdate);
 }
 
+function factUpdateToProb(f: FactUpdate): number {
+    // JSON converts Infinity to `null` :-/
+    if (f.ebisuObject[2] && isFinite(f.ebisuObject[2])) {
+        return ebisu.predictRecall(f.ebisuObject, elapsedHours(new Date(f.createdAt)));
+    }
+    return 1;
+};
+
 export function getMostForgottenFact(db: Db, opts: any = {}): xs<[FactUpdate, number]> {
     const dnow = new Date();
-    const elapsedHours = (d: Date) => ((dnow as any) - (d as any)) / 3600e3 as number;
-    const factUpdateToProb = (f: FactUpdate) => {
-        // JSON converts Infinity to `null` :-/
-        if (f.ebisuObject[2] && isFinite(f.ebisuObject[2])) {
-            return ebisu.predictRecall(f.ebisuObject, elapsedHours(new Date(f.createdAt)));
-        }
-        return 1;
-    };
-    let orig = omitNonlatestUpdates(db, opts);
-    return orig.fold(([prev, probPrev]: [FactUpdate, number], next) => {
-        if (!prev) {
-            let prob = factUpdateToProb(next);
-            return [next, prob];
-        }
-        let probNext = factUpdateToProb(next);
-        if (probNext < probPrev) { return [next, probNext]; }
-        return [prev, probPrev];
-    }, [null, null])
+    return omitNonlatestUpdates(db, opts)
+        .map(f => [f, factUpdateToProb(f)])
+        .fold(([f0, p0]: [FactUpdate, number], [f1, p1]: [FactUpdate, number]) => p1 < p0 ? [f1, p1] : [f0, p0], [null, 1])
         .last() as xs<[FactUpdate, number]>;
 }
 
@@ -119,11 +112,6 @@ export function getKnownFactIds(db: Db, opts: any = {}) {
     return keys.map(s => s.split('::')[2]).compose(dropRepeats());
 }
 
-
-const multilevel = require('multilevel');
-export function makeShoeInit(db: Db) {
-    return (function(stream) { stream.pipe(multilevel.server(db)).pipe(stream); });
-}
 
 //
 
