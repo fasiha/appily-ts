@@ -11,6 +11,7 @@ import { FactUpdate, FactDb, makeLeveldbOpts } from "./storageServer";
 import { EbisuObject, ebisu } from "./ebisu";
 import { xstreamToPromise, endsWith, elapsedHours } from "./utils";
 import { WhatToLearnInfo, WhatToQuizInfo, FactDbCycle } from "./cycleInterfaces";
+import { SubmitToServer, MostForgottenToServer, KnownFactIdsToServer, KnownFactIdsFromServer, DoneQuizzingToServer } from "./restInterfaces";
 
 // Import all FactDb-implementing modules, then add them to the docid2module map!
 import { toponymsCyclejs } from "./toponyms-cyclejs";
@@ -28,8 +29,6 @@ const newlyLearned = ebisu.defaultModel(0.25, 2.5);
 // Database
 
 // Wrapper around all fact databases
-
-import { SubmitToServer, MostForgottenToServer, KnownFactIdsToServer, KnownFactIdsFromServer, DoneQuizzingToServer } from "./RestInterfaces";
 
 async function webSubmit(docId: string, factId: string, ebisuObject: EbisuObject, updateObject: any) {
     const submitting: SubmitToServer = { docId, factId, ebisuObject, updateObject };

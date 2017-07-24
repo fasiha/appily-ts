@@ -7,6 +7,7 @@ import {
 } from "./storageServer";
 import { EbisuObject, ebisu } from "./ebisu";
 import { xstreamToPromise } from "./utils";
+import { SubmitToServer, MostForgottenToServer, MostForgottenFromServer, KnownFactIdsToServer, KnownFactIdsFromServer, DoneQuizzingToServer } from "./restInterfaces";
 
 const express = require('express');
 const bodyParser = require('body-parser');
@@ -16,8 +17,6 @@ const app = express();
 app.set('x-powered-by', false);
 app.use(bodyParser.json());
 app.use('/', express.static('client'));
-
-import { SubmitToServer, MostForgottenToServer, MostForgottenFromServer, KnownFactIdsToServer, KnownFactIdsFromServer, DoneQuizzingToServer } from "./RestInterfaces";
 
 async function submitFunction(db, user, submitted: SubmitToServer) {
     submit(db, user, submitted.docId, submitted.factId, submitted.ebisuObject, submitted.updateObject);

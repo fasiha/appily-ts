@@ -10,13 +10,13 @@ export interface WhatToQuizInfo {
     docId?: string;
     // allRelatedUpdates?: FactUpdate[];
     // factId?: string;
-};
+}
 
 export interface FactDbCycle {
     stripFactIdOfSubfact: (factId: string) => string;
     factToFactIds: (fact: any) => string[];
     makeDOMStream: MakeDOMStreamFunction;
-};
+}
 
 export interface CycleSources {
     DOM: any;
