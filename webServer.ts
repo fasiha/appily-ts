@@ -1,6 +1,6 @@
 import levelup = require('levelup');
 import xs from 'xstream';
-import { db } from "./diskDb";
+import { db, usersDb } from "./diskDb";
 import {
     getMostForgottenFact, omitNonlatestUpdates, getKnownFactIds,
     makeLeveldbOpts, submit, FactDb, doneQuizzing
@@ -9,15 +9,73 @@ import { EbisuObject, ebisu } from "./ebisu";
 import { xstreamToPromise } from "./utils";
 import { SubmitToServer, MostForgottenToServer, MostForgottenFromServer, KnownFactIdsToServer, KnownFactIdsFromServer, DoneQuizzingToServer } from "./restInterfaces";
 
+const assert = require('assert');
+const config = require('config');
 const express = require('express');
 const bodyParser = require('body-parser');
+const session = require('express-session');
+const LevelStore = require('level-session-store')(session);
+const passport = require('passport');
+const GitHubStrategy = require('passport-github2').Strategy;
+
+// Express setup
+assert(config.has('sessionSecret'));
 
 const port = 3001;
 const app = express();
 app.set('x-powered-by', false);
 app.use(bodyParser.json());
 app.use('/', express.static('client'));
+app.use(session({ secret: config.get('sessionSecret'), resave: false, saveUninitialized: false, store: new LevelStore() }));
+app.use(passport.initialize());
+app.use(passport.session());
 
+// Passport setup
+assert(config.has('github.clientId') && config.has('github.clientSecret'));
+
+passport.serializeUser((user, done) => {
+    return done(null, user.provider + '-' + user.id);
+});
+
+passport.deserializeUser((id, done) => {
+    usersDb.get(id, (err, val) => {
+        if (err) {
+            console.error(`Couldn’t deserialize ${id}`);
+            done(err, null);
+            return;
+        }
+        done(null, JSON.parse(val));
+    });
+});
+
+passport.use(new GitHubStrategy({
+    clientID: config.get('github.clientId'),
+    clientSecret: config.get('github.clientSecret'),
+    callbackURL: `http://127.0.0.1:${port}/auth/github/callback`
+},
+    function (accessToken, refreshToken, profile, done) {
+        const key = profile.provider + '-' + profile.id;
+        usersDb.get(key, (err, val) => {
+            if (val) {
+                done(null, JSON.parse(val));
+                return;
+            }
+            usersDb.put(key, JSON.stringify(profile));
+            done(null, profile);
+        })
+    }));
+
+app.get('/auth/github', passport.authenticate('github', { scope: [''] }));
+
+app.get('/auth/github/callback', passport.authenticate('github', { failureRedirect: '/login' }), (req, res) => res.redirect('/'));
+
+app.get('/logout', (req, res) => {
+    req.logout();
+    res.redirect('/');
+});
+
+
+// Rest API
 async function submitFunction(db, user, submitted: SubmitToServer) {
     submit(db, user, submitted.docId, submitted.factId, submitted.ebisuObject, submitted.updateObject);
 }
@@ -33,6 +91,7 @@ async function mostForgottenFunction(db, user, submitted: MostForgottenToServer)
     const [update, prob] = (await xstreamToPromise(getMostForgottenFact(db, makeLeveldbOpts(user, submitted.soleDocId))))[0];
     return { prob, update };
 }
+
 app.post('/api/mostForgotten', async (req, res) => {
     const user = (req.session && req.session.user) || 'ammy';
     res.json(await mostForgottenFunction(db, user, req.body));
@@ -61,4 +120,14 @@ app.post('/api/doneQuizzing', async (req, res) => {
     res.status(200).send('OK');
 })
 
+app.get('/api/private', ensureAuthenticated, (req, res) => {
+    res.json(req.user);
+})
+
 app.listen(port, () => { console.log(`Started: http://127.0.0.1:${port}`) });
+
+function ensureAuthenticated(req, res, next) {
+    if (req.isAuthenticated()) { return next(); }
+    res.status(401).send('unauthorized');
+
+}
