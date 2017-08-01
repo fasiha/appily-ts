@@ -18,6 +18,7 @@
     "@types/leveldown": "^1.7.0",
     "@types/levelup": "^0.0.30",
     "@types/lodash": "^4.14.71",
+    "@types/node": "^8.0.16",
     "@types/node-fetch": "^1.6.7",
     "bluebird": "^3.5.0",
     "body-parser": "^1.17.2",
