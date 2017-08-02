@@ -23,6 +23,7 @@
     "@types/passport": "^0.3.3",
     "bluebird": "^3.5.0",
     "body-parser": "^1.17.2",
+    "btoa": "^1.1.2",
     "config": "^1.26.1",
     "ebisu-js": "^0.5.5",
     "express": "^4.15.3",

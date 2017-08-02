@@ -17,6 +17,7 @@ const session = require('express-session');
 const LevelStore = require('level-session-store')(session);
 const passport = require('passport');
 const GitHubStrategy = require('passport-github2').Strategy;
+const btoa = require('btoa');
 
 // Express setup
 assert(config.has('sessionSecret'));
@@ -26,15 +27,27 @@ const app = express();
 app.set('x-powered-by', false);
 app.use(bodyParser.json());
 app.use('/', express.static('client'));
-app.use(session({ secret: config.get('sessionSecret'), resave: false, saveUninitialized: false, store: new LevelStore() }));
+app.use(session({
+    secret: config.get('sessionSecret'),
+    resave: false,
+    saveUninitialized: false,
+    httpOnly: true,
+    sameSite: true,
+    maxAge: 3e11, // roughly 3e10 milliseconds in a year
+    store: new LevelStore()
+}));
 app.use(passport.initialize());
 app.use(passport.session());
 
 // Passport setup
 assert(config.has('github.clientId') && config.has('github.clientSecret'));
 
+function profileToKey(profile): string {
+    return btoa(profile.provider + '-' + profile.id);
+}
+
 passport.serializeUser((user, done) => {
-    return done(null, user.provider + '-' + user.id);
+    return done(null, profileToKey(user));
 });
 
 passport.deserializeUser((id, done) => {
@@ -54,7 +67,8 @@ passport.use(new GitHubStrategy({
     callbackURL: `http://127.0.0.1:${port}/auth/github/callback`
 },
     function (accessToken, refreshToken, profile, done) {
-        const key = profile.provider + '-' + profile.id;
+        const key = profileToKey(profile);
+        profile.appKey = key;
         usersDb.get(key, (err, val) => {
             if (val) {
                 done(null, JSON.parse(val));
