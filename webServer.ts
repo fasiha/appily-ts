@@ -18,6 +18,7 @@ const LevelStore = require('level-session-store')(session);
 const passport = require('passport');
 const GitHubStrategy = require('passport-github2').Strategy;
 const btoa = require('btoa');
+import { randomBytes } from 'crypto';
 
 // Express setup
 assert(config.has('sessionSecret'));
@@ -68,14 +69,15 @@ passport.use(new GitHubStrategy({
 },
     function (accessToken, refreshToken, profile, done) {
         const key = profileToKey(profile);
-        profile.appKey = key;
+        const appKey = randomBytes(12).toString('base64');
+        const newProfile = { appKey, provider: profile.provider, id: profile.id };
         usersDb.get(key, (err, val) => {
             if (val) {
                 done(null, JSON.parse(val));
                 return;
             }
-            usersDb.put(key, JSON.stringify(profile));
-            done(null, profile);
+            usersDb.put(key, JSON.stringify(newProfile));
+            done(null, newProfile);
         })
     }));
 
@@ -106,8 +108,9 @@ async function mostForgottenFunction(db, user, submitted: MostForgottenToServer)
     return { prob, update };
 }
 
-app.post('/api/mostForgotten', async (req, res) => {
-    const user = (req.session && req.session.user) || 'ammy';
+app.post('/api/mostForgotten', ensureAuthenticated, async (req, res) => {
+    // console.log('whee', [req.user , 'ammy'])
+    const user = (req.user && req.user.appKey) || 'ammy';
     res.json(await mostForgottenFunction(db, user, req.body));
 })
 

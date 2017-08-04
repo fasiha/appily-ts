@@ -24,7 +24,7 @@ const docid2module: Map<string, FactDbCycle> = new Map([
     ["scrambler", scramblerCyclejs]
 ]);
 
-const PROB_THRESH = 0.995;
+const PROB_THRESH = 0.25;
 const newlyLearned = ebisu.defaultModel(0.25, 2.5);
 
 // Database
@@ -48,7 +48,8 @@ async function getMostForgottenFact(soleDocId: string): Promise<WhatToQuizInfo> 
     const got = await (await fetch('/api/mostForgotten', {
         headers: { 'Content-Type': 'application/json' },
         method: "POST",
-        body: JSON.stringify(submitting)
+        body: JSON.stringify(submitting),
+        credentials: 'include'
     })).json();
     const update = got.update;
     const prob = got.prob;
