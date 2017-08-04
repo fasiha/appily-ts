@@ -73,6 +73,7 @@ export function makeLeveldbOpts(user: string, docId: string = '', factId: string
         if (factIdFragment) {
             b += '\ufff0';
         } else {
+            a += '::';
             b += ';';
         }
         return ret(a, b);
@@ -88,10 +89,10 @@ export function getCurrentUpdates(db: Db, opts: any = {}): xs<FactUpdate> {
         .map(v => JSON.parse(v) as FactUpdate);
 }
 
-function factUpdateToProb(f: FactUpdate): number {
+function factUpdateToProb(f: FactUpdate, dnow: Date): number {
     // JSON converts Infinity to `null` :-/
     if (f.ebisuObject[2] && isFinite(f.ebisuObject[2])) {
-        return ebisu.predictRecall(f.ebisuObject, elapsedHours(new Date(f.createdAt)));
+        return ebisu.predictRecall(f.ebisuObject, elapsedHours(new Date(f.createdAt), dnow));
     }
     return 1;
 };
@@ -99,7 +100,7 @@ function factUpdateToProb(f: FactUpdate): number {
 export function getMostForgottenFact(db: Db, opts: any = {}): xs<[FactUpdate, number]> {
     const dnow = new Date();
     return getCurrentUpdates(db, opts)
-        .map(f => [f, factUpdateToProb(f)])
+        .map(f => [f, factUpdateToProb(f, dnow)])
         .fold(([f0, p0]: [FactUpdate, number], [f1, p1]: [FactUpdate, number]) => p1 < p0 ? [f1, p1] : [f0, p0], [null, 1])
         .last() as xs<[FactUpdate, number]>;
 }

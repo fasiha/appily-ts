@@ -1,3 +1,11 @@
+/* 
+This converts a Appily level database printout (made via printDatedDb.ts), in
+the old v1 format, of `${user}::${docid}::${factid}::${createdAt}` to the new
+v2 format of `cu::${user}::${docid}::${factid}::` AND
+`hi::${user}::${docid}::${factid}::${createdAt}`, where the former is
+`hi`storic and the latter is `cu`rrent (or the latest) updates.
+*/
+
 import { readFileSync } from 'fs';
 
 var rows = readFileSync('mydb.txt', 'utf8').trim().split('\n').map(s => s.split('→'));
