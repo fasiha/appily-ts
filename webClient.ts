@@ -4,8 +4,9 @@ import xs from 'xstream';
 import { MemoryStream } from 'xstream';
 import isolate from '@cycle/isolate';
 import { run } from '@cycle/run';
-import { div, button, p, ol, li, span, input, form, makeDOMDriver, VNode } from '@cycle/dom';
+import { div, button, p, a, makeDOMDriver } from '@cycle/dom';
 import sampleCombine from 'xstream/extra/sampleCombine'
+import { makeHTTPDriver } from '@cycle/http';
 
 import { FactUpdate, FactDb, makeLeveldbOpts } from "./storageServer";
 import { EbisuObject, ebisu } from "./ebisu";
@@ -77,7 +78,23 @@ function doneQuizzing(docId: string, activelyQuizzedFactId: string, allQuizzedFa
         body: JSON.stringify(submitting)
     });
 }
+
 function main(sources) {
+    // Login
+    const getAuthStatus$ = xs.of(true).mapTo({ url: '/api/private', category: 'ping', method: 'GET' });
+    const authStatus$: xs<any> = sources.HTTP.select('ping')
+        .flatten()
+        .map(o => !o.unauthorized)
+        .replaceError(e => xs.of(false)) as xs<Boolean>;
+    const authDom$ = authStatus$.map(loggedIn => {
+        if (loggedIn) {
+            return div([p('Logged in!'), button('.hit-me', 'Hit me')])
+        } else {
+            return a({ attrs: { href: "/auth/github" } }, 'Log in with GitHub!')
+        }
+    }).remember();
+
+    // SRS
     const action$ = sources.DOM.select('.hit-me').events('click').mapTo(0) as xs<number>;
 
     const SOLE_DOCID = '';
@@ -117,15 +134,21 @@ function main(sources) {
     });
     const allDom$ = xs.merge(...sinks.map(o => o.DOM));
 
-    const vdom$ = allDom$.map(element => {
+    const loginPlusAll$ = xs.combine(authDom$, allDom$);
+    const vdom$ = loginPlusAll$.map(([login, element]) => {
         return div([
-            button('.hit-me', 'Hit me'),
+            login,
             element
         ]);
     });
-    return { DOM: vdom$ };
+
+    return {
+        DOM: vdom$,
+        HTTP: getAuthStatus$
+    };
 }
 
 run(main, {
-    DOM: makeDOMDriver('#app')
+    DOM: makeDOMDriver('#app'),
+    HTTP: makeHTTPDriver()
 });
