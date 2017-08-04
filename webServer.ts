@@ -1,10 +1,7 @@
 import levelup = require('levelup');
 import xs from 'xstream';
 import { db, usersDb } from "./diskDb";
-import {
-    getMostForgottenFact, omitNonlatestUpdates, getKnownFactIds,
-    makeLeveldbOpts, submit, FactDb, doneQuizzing
-} from "./storageServer";
+import { getMostForgottenFact, getCurrentUpdates, getKnownFactIds, makeLeveldbOpts, submit, FactDb, doneQuizzing } from "./storageServer";
 import { EbisuObject, ebisu } from "./ebisu";
 import { xstreamToPromise } from "./utils";
 import { SubmitToServer, MostForgottenToServer, MostForgottenFromServer, KnownFactIdsToServer, KnownFactIdsFromServer, DoneQuizzingToServer } from "./restInterfaces";
@@ -96,9 +93,9 @@ async function submitFunction(db, user, submitted: SubmitToServer) {
     submit(db, user, submitted.docId, submitted.factId, submitted.ebisuObject, submitted.updateObject);
 }
 
-app.post('/api/submit', async (req, res) => {
+app.post('/api/submit', ensureAuthenticated, async (req, res) => {
     const b: SubmitToServer = req.body;
-    const user = (req.session && req.session.user) || 'ammy';
+    const user = req.user && req.user.appKey;
     submitFunction(db, user, b);
     res.status(200).send('OK');
 })
@@ -110,7 +107,7 @@ async function mostForgottenFunction(db, user, submitted: MostForgottenToServer)
 
 app.post('/api/mostForgotten', ensureAuthenticated, async (req, res) => {
     // console.log('whee', [req.user , 'ammy'])
-    const user = (req.user && req.user.appKey) || 'ammy';
+    const user = req.user && req.user.appKey;
     res.json(await mostForgottenFunction(db, user, req.body));
 })
 
@@ -118,21 +115,20 @@ async function knownFactIdsFunction(db, user, submitted: KnownFactIdsToServer): 
     const opts = makeLeveldbOpts(user, submitted.docId);
     return xstreamToPromise(getKnownFactIds(db, opts));
 }
-app.post('/api/knownFactIds', async (req, res) => {
-    const user = (req.session && req.session.user) || 'ammy';
+app.post('/api/knownFactIds', ensureAuthenticated, async (req, res) => {
+    const user = req.user && req.user.appKey;
     const done = await knownFactIdsFunction(db, user, req.body);
     res.json(done);
 })
 
 async function doneQuizzingFunction(db, user, submitted: DoneQuizzingToServer) {
-    const streams = submitted.allQuizzedFactIds.map(factId => omitNonlatestUpdates(db, makeLeveldbOpts(user, submitted.docId, factId, true)))
+    const streams = submitted.allQuizzedFactIds.map(factId => getCurrentUpdates(db, makeLeveldbOpts(user, submitted.docId, factId, true)))
     const allUpdates = await xstreamToPromise(xs.merge(...streams));
     doneQuizzing(db, user, submitted.docId, submitted.activelyQuizzedFactId, allUpdates, submitted.infos[0])
     // todo: small: enhance doneQuizzing to use different factIds and infos, since a quiz might not passively review *all* subfacts
-    // todo: BIG: separate history & current streams in level.
 }
-app.post('/api/doneQuizzing', async (req, res) => {
-    const user = (req.session && req.session.user) || 'ammy';
+app.post('/api/doneQuizzing', ensureAuthenticated, async (req, res) => {
+    const user = req.user && req.user.appKey;
     doneQuizzingFunction(db, user, req.body);
     res.status(200).send('OK');
 })
@@ -146,5 +142,4 @@ app.listen(port, () => { console.log(`Started: http://127.0.0.1:${port}`) });
 function ensureAuthenticated(req, res, next) {
     if (req.isAuthenticated()) { return next(); }
     res.status(401).send('unauthorized');
-
 }

@@ -17,19 +17,19 @@ export interface FactUpdate {
 type Db = levelup.LevelUpBase<levelup.Batch>;
 interface KeyVal { key: string, value: string };
 
-function createFactUpdateKey(user: string, docId: string, factId: string, createdAt: Date): string {
-    return `${user}::${docId}::${factId}::${createdAt.toISOString()}`;
+function createFactUpdateKeys(user: string, docId: string, factId: string, createdAt: Date): [string, string] {
+    const historic = `hi::${user}::${docId}::${factId}::${createdAt.toISOString()}`;
+    const current = `cu::${user}::${docId}::${factId}::`;
+    return [historic, current];
 }
 
 export async function submit(db: Db, user: string, docId: string, factId: string, ebisuObject: EbisuObject, updateObject = {}) {
     let createdAt = new Date();
-    let key = createFactUpdateKey(user, docId, factId, createdAt);
+    let keys = createFactUpdateKeys(user, docId, factId, createdAt);
     let u: FactUpdate = { user, docId, factId, createdAt, ebisuObject, updateObject };
-    try {
-        await (db as any).putAsync(key, JSON.stringify(u));
-    } catch (e) {
-        console.error("Error", e);
-    }
+    const ustr: string = JSON.stringify(u);
+    Promise.all(keys.map(key => (db as any).putAsync(key, ustr)))
+        .catch(e => console.error('Submit error', e));
 }
 
 function levelStreamToXstream(levelStream) {
@@ -46,14 +46,18 @@ export function leveldbToKeyStream(db: Db, opts?: any): xs<string> {
     return levelStreamToXstream(db.createKeyStream(opts)) as xs<string>;
 }
 
+export function leveldbToValueStream(db: Db, opts?: any): xs<string> {
+    return levelStreamToXstream(db.createValueStream(opts)) as xs<string>;
+}
+
 export function leveldbToStream(db: Db, opts?: any): xs<KeyVal> {
     return levelStreamToXstream(db.createReadStream(opts)) as xs<KeyVal>;
 }
 
 export function makeLeveldbOpts(user: string, docId: string = '', factId: string = '', factIdFragment: boolean = true) {
     let ret = (a: string, b: string) => ({ gte: a, lt: b });
-    let a: string = `${user}`;
-    let b: string = `${user}`;
+    let a: string = `cu::${user}`;
+    let b: string = `cu::${user}`;
     if (docId.length) {
         a += `::${docId}`;
         b += `::${docId}`;
@@ -67,9 +71,8 @@ export function makeLeveldbOpts(user: string, docId: string = '', factId: string
         a += `::${factId}`;
         b += `::${factId}`;
         if (factIdFragment) {
-            b += '\uffff';
+            b += '\ufff0';
         } else {
-            a += '::';
             b += ';';
         }
         return ret(a, b);
@@ -80,15 +83,9 @@ export function makeLeveldbOpts(user: string, docId: string = '', factId: string
     return ret(a, b);
 }
 
-import dropRepeats from 'xstream/extra/dropRepeats'
-
-export function omitNonlatestUpdates(db: Db, opts: any = {}): xs<FactUpdate> {
-    opts.reverse = true;
-
-    // a, b are KeyVal but xstream gets confused with these types
-    const eq = (a, b) => a.key.split('::')[2] === b.key.split('::')[2];
-    return leveldbToStream(db, opts).compose(dropRepeats(eq))
-        .map((x: KeyVal) => JSON.parse(x.value) as FactUpdate);
+export function getCurrentUpdates(db: Db, opts: any = {}): xs<FactUpdate> {
+    return leveldbToValueStream(db, opts)
+        .map(v => JSON.parse(v) as FactUpdate);
 }
 
 function factUpdateToProb(f: FactUpdate): number {
@@ -101,7 +98,7 @@ function factUpdateToProb(f: FactUpdate): number {
 
 export function getMostForgottenFact(db: Db, opts: any = {}): xs<[FactUpdate, number]> {
     const dnow = new Date();
-    return omitNonlatestUpdates(db, opts)
+    return getCurrentUpdates(db, opts)
         .map(f => [f, factUpdateToProb(f)])
         .fold(([f0, p0]: [FactUpdate, number], [f1, p1]: [FactUpdate, number]) => p1 < p0 ? [f1, p1] : [f0, p0], [null, 1])
         .last() as xs<[FactUpdate, number]>;
@@ -109,7 +106,7 @@ export function getMostForgottenFact(db: Db, opts: any = {}): xs<[FactUpdate, nu
 
 export function getKnownFactIds(db: Db, opts: any = {}) {
     let keys = leveldbToKeyStream(db, opts);
-    return keys.map(s => s.split('::')[2]).compose(dropRepeats());
+    return keys.map(s => s.split('::')[3]);
 }
 
 

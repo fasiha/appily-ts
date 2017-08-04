@@ -34,12 +34,10 @@ const newlyLearned = ebisu.defaultModel(0.25, 2.5);
 async function webSubmit(docId: string, factId: string, ebisuObject: EbisuObject, updateObject: any) {
     const submitting: SubmitToServer = { docId, factId, ebisuObject, updateObject };
     return fetch('/api/submit', {
-        headers: {
-            // 'Accept': 'application/json',
-            'Content-Type': 'application/json'
-        },
+        headers: { 'Content-Type': 'application/json' },
         method: "POST",
-        body: JSON.stringify(submitting)
+        body: JSON.stringify(submitting),
+        credentials: 'include'
     });
 }
 
@@ -63,7 +61,8 @@ async function getKnownFactIds(docId: string): Promise<KnownFactIdsFromServer> {
     return (await fetch('/api/knownFactIds', {
         headers: { 'Content-Type': 'application/json' },
         method: "POST",
-        body: JSON.stringify(submitting)
+        body: JSON.stringify(submitting),
+        credentials: 'include'
     })).json();
 }
 
@@ -76,7 +75,8 @@ function doneQuizzing(docId: string, activelyQuizzedFactId: string, allQuizzedFa
     return fetch('/api/doneQuizzing', {
         headers: { 'Content-Type': 'application/json' },
         method: "POST",
-        body: JSON.stringify(submitting)
+        body: JSON.stringify(submitting),
+        credentials: 'include'
     });
 }
 
