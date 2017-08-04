@@ -48,7 +48,7 @@ async function getMostForgottenFact(soleDocId: string): Promise<WhatToQuizInfo> 
     const got = await (await fetch('/api/mostForgotten', {
         headers: { 'Content-Type': 'application/json' },
         method: "POST",
-        body: submitting
+        body: JSON.stringify(submitting)
     })).json();
     const update = got.update;
     const prob = got.prob;
