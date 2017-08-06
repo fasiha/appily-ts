@@ -5,8 +5,7 @@
   "license": "Unlicense",
   "scripts": {
     "cli": "node cli.js",
-    "print": "node printDbDated.js",
-    "stor": "node storageServer.js"
+    "print": "node printDbDated.js"
   },
   "dependencies": {
     "@cycle/dom": "^18.0.0",
@@ -34,16 +33,14 @@
     "leveldown": "^1.7.2",
     "levelup": "^1.3.8",
     "lodash": "^4.17.4",
-    "multilevel": "^7.3.0",
     "node-fetch": "^1.7.1",
     "passport": "^0.3.2",
     "passport-github2": "^0.1.10",
-    "shoe": "^0.0.15",
-    "typescript": "^2.4.2",
-    "typescript-formatter": "^5.2.0",
     "xstream": "^10.9.0"
   },
   "devDependencies": {
-    "browserify": "^14.4.0"
+    "browserify": "^14.4.0",
+    "typescript": "^2.4.2",
+    "typescript-formatter": "^5.2.0"
   }
 }
