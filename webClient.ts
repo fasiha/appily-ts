@@ -4,7 +4,7 @@ import xs from 'xstream';
 import { MemoryStream } from 'xstream';
 import isolate from '@cycle/isolate';
 import { run } from '@cycle/run';
-import { div, button, p, a, makeDOMDriver } from '@cycle/dom';
+import { div, button, p, a, span, input, VNode, makeDOMDriver } from '@cycle/dom';
 import sampleCombine from 'xstream/extra/sampleCombine'
 import { makeHTTPDriver } from '@cycle/http';
 
@@ -27,43 +27,40 @@ const docid2module: Map<string, FactDbCycle> = new Map([
 const PROB_THRESH = 0.25;
 const newlyLearned = ebisu.defaultModel(0.25, 2.5);
 
+
+const TONO_URL = "https://raw.githubusercontent.com/fasiha/tono-yamazaki-maekawa/master/tono.json";
+
+
 // Database
 
 // Wrapper around all fact databases
 
-async function webSubmit(docId: string, factId: string, ebisuObject: EbisuObject, updateObject: any) {
-    const submitting: SubmitToServer = { docId, factId, ebisuObject, updateObject };
-    return fetch('/api/submit', {
+function postObject(obj) {
+    return {
         headers: { 'Content-Type': 'application/json' },
         method: "POST",
-        body: JSON.stringify(submitting),
+        body: JSON.stringify(obj),
         credentials: 'include'
-    });
+    } as RequestInit;
+}
+
+async function webSubmit(docId: string, factId: string, ebisuObject: EbisuObject, updateObject: any) {
+    const submitting: SubmitToServer = { docId, factId, ebisuObject, updateObject };
+    return fetch('/api/submit', postObject(submitting));
 }
 
 async function getMostForgottenFact(soleDocId: string): Promise<WhatToQuizInfo> {
     const submitting: MostForgottenToServer = { soleDocId }
-    const got = await (await fetch('/api/mostForgotten', {
-        headers: { 'Content-Type': 'application/json' },
-        method: "POST",
-        body: JSON.stringify(submitting),
-        credentials: 'include'
-    })).json();
+    const got = await (await fetch('/api/mostForgotten', postObject(submitting))).json();
     const update = got.update;
     const prob = got.prob;
     const docId = update && update.docId;
     return { update, prob, docId, risky: prob && prob <= PROB_THRESH && docid2module.has(update.docId), startTime: new Date() };
 }
 
-
 async function getKnownFactIds(docId: string): Promise<KnownFactIdsFromServer> {
     const submitting: KnownFactIdsToServer = { docId };
-    return (await fetch('/api/knownFactIds', {
-        headers: { 'Content-Type': 'application/json' },
-        method: "POST",
-        body: JSON.stringify(submitting),
-        credentials: 'include'
-    })).json();
+    return (await fetch('/api/knownFactIds', postObject(submitting))).json();
 }
 
 async function doneLearning(docId: string, factIds: string[], updateObjects: any[]) {
@@ -72,15 +69,71 @@ async function doneLearning(docId: string, factIds: string[], updateObjects: any
 
 function doneQuizzing(docId: string, activelyQuizzedFactId: string, allQuizzedFactIds: string[], infos: any[]) {
     const submitting: DoneQuizzingToServer = { docId, activelyQuizzedFactId, allQuizzedFactIds, infos };
-    return fetch('/api/doneQuizzing', {
-        headers: { 'Content-Type': 'application/json' },
-        method: "POST",
-        body: JSON.stringify(submitting),
-        credentials: 'include'
-    });
+    return fetch('/api/doneQuizzing', postObject(submitting));
 }
 
+
+function LabeledSlider(sources) {
+    const domSource = sources.DOM;
+    const props$ = sources.props;
+
+    const newValue$ = domSource
+        .select('.slider')
+        .events('input')
+        .map(ev => ev.target.value);
+
+    const state$ = props$
+        .map(props => newValue$
+            .map(val => ({
+                label: props.label,
+                unit: props.unit,
+                min: props.min,
+                value: val,
+                max: props.max
+            }))
+            .startWith(props)
+        )
+        .flatten()
+        .remember();
+
+    const vdom$ = state$
+        .map(state =>
+            div('.labeled-slider', [
+                span('.label',
+                    state.label + ' ' + state.value + state.unit
+                ),
+                input('.slider', {
+                    attrs: { type: 'range', min: state.min, max: state.max, value: state.value }
+                })
+            ])
+        );
+
+    const sinks = {
+        DOM: vdom$,
+        value: state$.map(state => state.value),
+    };
+    return sinks;
+}
+
+
+// function docsToDom(): VNode {
+//     // return div(Array.from(docid2module.keys()).map((docid: string) => ));
+// }
+
 function main(sources) {
+    // Testing
+    const strs$ = sources.DOM.select('button#appender')
+        .events('click')
+        .mapTo(_ => Array.from(document.querySelectorAll("input.appended")).map((x: HTMLInputElement) => x.value))
+        .startWith(["torpor", "torpid", "torpedo"])
+
+    const strsDom$ = strs$.map((vec: string[]) => {
+        div(vec.map(s => input('.appended', { type: "text", text: s })).concat([button("#saver", "Save"), button("#appender", "+")]));
+    });
+
+    const saver$ = sources.DOM.select('button#saver').events('click');
+    saver$.addListener({ next: x => console.log('juicy!', x) });
+
     // Login
     const getAuthStatus$ = xs.of(true).mapTo({ url: '/api/private', category: 'ping', method: 'GET' });
     const authStatus$: xs<any> = sources.HTTP.select('ping')
@@ -89,7 +142,11 @@ function main(sources) {
         .replaceError(e => xs.of(false)) as xs<Boolean>;
     const authDom$ = authStatus$.map(loggedIn => {
         if (loggedIn) {
-            return div([p('Logged in!'), button('.hit-me', 'Hit me')])
+            return div([
+                p('Logged in!'),
+
+                button('.hit-me', 'Hit me')
+            ])
         } else {
             return a({ attrs: { href: "/auth/github" } }, 'Log in with GitHub!')
         }

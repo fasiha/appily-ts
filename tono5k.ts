@@ -5,13 +5,25 @@ import { ebisu, EbisuObject } from "./ebisu";
 import { uncachedUrlFetch, dedupeViaSets, endsWith, elapsedHours, all, any, concatMap } from "./utils";
 import { furiganaStringToPlain, parseJmdictFurigana } from "./ruby";
 
-export const tono5k: FactDb = { stripFactIdOfSubfact, whatToLearn, howToQuiz, factToFactIds };
+export const tono5k: FactDb = { setup, stripFactIdOfSubfact, whatToLearn, howToQuiz, factToFactIds };
 
-const TONO_URL = "https://raw.githubusercontent.com/fasiha/tono-yamazaki-maekawa/master/tono.json";
+export interface TonoData {
+    allFacts: Tono[];
+    allFactsWithKanji: Tono[];
+    availableFactIds: Set<string>;
+}
 
-const allFactsProm: Promise<Tono[]> = urlToFacts(TONO_URL);
-const availableFactIdsProm: Promise<Set<string>> = allFactsProm.then(allFacts => new Set(concatMap(allFacts, factToFactIds)));
-const allFactsWithKanjiProm = allFactsProm.then(allFacts => allFacts.filter((fact: Tono) => fact.kanjis.length > 0));
+async function setup(inputs: string[]): Promise<TonoData> {
+    let parsed: Tono[] = [];
+    inputs.forEach(x => parsed.push(JSON.parse(x)));
+    const allFacts = parsed.map(tono => {
+        tono.kanjis = dedupeViaSets(tono.kanjis.map(k => furiganaStringToPlain(parseJmdictFurigana(k))));
+        return tono;
+    });
+    const allFactsWithKanji = allFacts.filter((fact: Tono) => fact.kanjis.length > 0);
+    const availableFactIds = new Set(concatMap(allFacts, factToFactIds));
+    return { availableFactIds, allFacts, allFactsWithKanji };
+}
 
 function stripFactIdOfSubfact(factId: string): string {
     return factId.split('-').slice(0, -1).join('');
@@ -28,14 +40,6 @@ export interface Tono {
     register?: string;
 }
 
-async function urlToFacts(url: string): Promise<Tono[]> {
-    let json: Tono[] = JSON.parse(await uncachedUrlFetch(url));
-    return json.map(tono => {
-        tono.kanjis = dedupeViaSets(tono.kanjis.map(k => furiganaStringToPlain(parseJmdictFurigana(k))));
-        return tono;
-    })
-}
-
 function factToFactIds(fact: Tono): string[] {
     const plain = fact.num;
     if (fact.kanjis.length > 0) {
@@ -44,9 +48,9 @@ function factToFactIds(fact: Tono): string[] {
     return 'reading,meaning'.split(',').map(sub => `${plain}-${sub}`);
 }
 
-async function whatToLearn(knownFactIds: string[]): Promise<Tono> {
-    const allFacts = await allFactsProm;
-    const availableFactIds = await availableFactIdsProm;
+function whatToLearn(data: TonoData, knownFactIds: string[]): Tono {
+    const allFacts = data.allFacts;
+    const availableFactIds = data.availableFactIds;
     const knownIdsSet = new Set(knownFactIds.filter(s => availableFactIds.has(s)));
 
     // Only look for the following parts of speech:
@@ -61,15 +65,16 @@ export interface HowToQuizInfo {
     confusers?: Tono[];
 };
 
-async function howToQuiz(factId: string): Promise<HowToQuizInfo> {
-    let allFacts: Tono[] = await allFactsProm;
+function howToQuiz(data: TonoData, factId: string): HowToQuizInfo {
+    let allFacts: Tono[] = data.allFacts;
+    const allFactsWithKanji = data.allFactsWithKanji;
     let plain0 = +stripFactIdOfSubfact(factId);
     let fact = allFacts.find(fact => fact.num === plain0);
 
     let ret: HowToQuizInfo = { fact };
     if (endsWith(factId, '-kanji') || endsWith(factId, '-meaning')) {
         const kanjiQuiz = endsWith(factId, '-kanji');
-        const confusers = shuffle(sampleSize(kanjiQuiz ? await allFactsWithKanjiProm : allFacts, 4).concat([fact]));
+        const confusers = shuffle(sampleSize(kanjiQuiz ? allFactsWithKanji : allFacts, 4).concat([fact]));
         ret.confusers = confusers;
     }
     return ret;

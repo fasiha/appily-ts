@@ -37,3 +37,4 @@ for (const [k, vs] of Array.from(mAll.entries())) {
         db.put('hi::' + fix(k) + o.createdAt, fix(v));
     }
 }
+// Make sure all data was committed! Node might conceivably exit before level finishes?
