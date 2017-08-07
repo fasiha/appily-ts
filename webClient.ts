@@ -4,7 +4,7 @@ import xs from 'xstream';
 import { MemoryStream } from 'xstream';
 import isolate from '@cycle/isolate';
 import { run } from '@cycle/run';
-import { div, button, p, a, makeDOMDriver } from '@cycle/dom';
+import { div, ul, li, button, p, a, input, makeDOMDriver } from '@cycle/dom';
 import sampleCombine from 'xstream/extra/sampleCombine'
 import { makeHTTPDriver } from '@cycle/http';
 
@@ -81,6 +81,43 @@ function doneQuizzing(docId: string, activelyQuizzedFactId: string, allQuizzedFa
 }
 
 function main(sources) {
+
+    // Testing
+    const getAppendedStrings = () => Array.from(document.querySelectorAll("input.appended")).map((x: HTMLInputElement) => x.value);
+
+    const deletes$ = sources.DOM.select('button.deleter').events('click').map(e => e.target.id) as xs<string>;
+    const strs$ = xs.merge(
+        deletes$,
+        sources.DOM.select('button#appender')
+            .events('click')
+            .mapTo(''))
+        .map((id: string) => {
+            let allStrings = getAppendedStrings();
+            if (id === '') {
+                return allStrings.concat('');
+            }
+            const deleteIdx = +(id.split('-')[1]);
+            allStrings.splice(deleteIdx, 1);
+            return allStrings;
+        })
+        .startWith(["torpor", "torpid", "torpedo"]) as MemoryStream<string[]>;
+
+    const strsDom$ = strs$.map(vec => {
+        return div('#juicy',
+            [
+                p("TITLE" + ':'),
+                ul(vec.map((s, idx) => li(
+                    [
+                        input('.appended', { attrs: { type: "text", value: s } }),
+                        button(`#deleter-${idx}.deleter`, 'Delete')
+                    ]))
+                    .concat([button("#saver", "Save"), button("#appender", "+")]))]);
+    });
+    const saveds$ = sources.DOM.select('button#saver').events('click').map(_ => getAppendedStrings());
+
+    saveds$.addListener({ next: x => console.log('juicy!', x) });
+
+
     // Login
     const getAuthStatus$ = xs.of(true).mapTo({ url: '/api/private', category: 'ping', method: 'GET' });
     const authStatus$: xs<any> = sources.HTTP.select('ping')
@@ -144,7 +181,7 @@ function main(sources) {
     });
 
     return {
-        DOM: vdom$,
+        DOM: strsDom$,
         HTTP: getAuthStatus$
     };
 }
