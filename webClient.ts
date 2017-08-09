@@ -149,7 +149,10 @@ function main(sources) {
     };
 }
 
-run(main, {
+import onionify from 'cycle-onionify';
+import Login from "./Login";
+const login = onionify(Login);
+run(login, {
     DOM: makeDOMDriver('#app'),
     HTTP: makeHTTPDriver()
 });
