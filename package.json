@@ -26,6 +26,7 @@
     "body-parser": "^1.17.2",
     "btoa": "^1.1.2",
     "config": "^1.26.1",
+    "cycle-onionify": "^3.3.0",
     "ebisu-js": "^0.5.5",
     "express": "^4.15.3",
     "express-session": "^1.15.4",

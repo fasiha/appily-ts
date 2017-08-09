@@ -80,7 +80,13 @@ function doneQuizzing(docId: string, activelyQuizzedFactId: string, allQuizzedFa
     });
 }
 
+
+import ItemsApp from "./itemsApp";
+import onionify from 'cycle-onionify';
+const whee = onionify(ItemsApp);
+
 function main(sources) {
+
 
     // Testing
     const getAppendedStrings = () => Array.from(document.querySelectorAll("input.appended")).map((x: HTMLInputElement) => x.value);
@@ -186,7 +192,7 @@ function main(sources) {
     };
 }
 
-run(main, {
+run(whee, {
     DOM: makeDOMDriver('#app'),
-    HTTP: makeHTTPDriver()
+    // HTTP: makeHTTPDriver()
 });
