@@ -139,3 +139,27 @@ export interface FactDb {
     stripFactIdOfSubfact: (factId: string) => string;
     factToFactIds: (fact: any) => string[];
 }
+
+
+// User stuff
+
+export interface DoctypeParams {
+    name: string;
+    sources: string[];
+}
+export interface UserParams {
+    id: string;
+    doctypes: DoctypeParams[];
+    displayName?: string;
+}
+
+export function getUserParams(db: Db, username: string): xs<UserParams> {
+    const key = `us::${username}::params`;
+    return leveldbToValueStream(db, { gte: key, lt: key + '\u0000' })
+        .map(v => JSON.parse(v) as UserParams);
+}
+
+export async function setUserParams(db: Db, username: string, params: UserParams) {
+    const key = `us::${username}::params`;
+    return (db as any).putAsync(key, JSON.stringify(params));
+}

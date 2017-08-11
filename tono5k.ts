@@ -69,6 +69,10 @@ function howToQuiz(data: TonoData, factId: string): HowToQuizInfo {
     const allFactsWithKanji = data.allFactsWithKanji;
     let plain0 = +stripFactIdOfSubfact(factId);
     let fact = allFacts.find(fact => fact.num === plain0);
+    if (!fact) {
+        console.error("Couldn't find fact! FIXME FIXME!:", factId);
+        return null;
+    }
 
     let ret: HowToQuizInfo = { fact };
     if (endsWith(factId, '-kanji') || endsWith(factId, '-meaning')) {

@@ -1,9 +1,8 @@
-import { Tono, HowToQuizInfo, tono5k } from "./tono5k";
+import { Tono, TonoData, HowToQuizInfo, tono5k } from "./tono5k";
 import { xstreamToPromise, endsWith, elapsedHours } from "./utils";
 import { WhatToQuizInfo, FactDbCycle, WhatToLearnInfo, CycleSinks, CycleSources } from "./cycleInterfaces";
 
-import xs from 'xstream';
-import { MemoryStream } from 'xstream';
+import xs, { MemoryStream } from 'xstream';
 import { run } from '@cycle/run';
 import { div, button, p, ol, li, span, input, form, makeDOMDriver, VNode } from '@cycle/dom';
 import sampleCombine from 'xstream/extra/sampleCombine'
@@ -72,16 +71,22 @@ function newFactToDom(fact: any): VNode {
 }
 
 function makeDOMStream(sources: CycleSources): CycleSinks {
-    const quiz$ = sources.quiz
-        .map((quiz: WhatToQuizInfo) => xs.fromPromise(tono5k.howToQuiz(quiz.update.factId).then(quizInfo => {
-            quiz.quizInfo = quizInfo;
-            return quiz;
-        })))
+    const factData$: MemoryStream<TonoData> = sources.params.map(docparam => xs.fromPromise(tono5k.setup(docparam.sources))).flatten().remember();
+
+    const quiz$ = xs.combine(sources.quiz, factData$)
+        .map(([quiz, factData]: [WhatToQuizInfo, TonoData]) => xs.fromPromise(
+            tono5k.howToQuiz(factData, quiz.update.factId).then(quizInfo => {
+                quiz.quizInfo = quizInfo;
+                return quiz;
+            })
+        ))
         .flatten().remember() as MemoryStream<WhatToQuizInfo>;
     const known$ = sources.known;
     // quiz$.addListener({ next: x => console.log('quiz3', x) })
 
-    const quizDom$ = quiz$.map(quiz => quiz && quiz.risky ? quizToDOM(quiz) : null);
+    // `quiz.quizInfo` is null when the FactDb couldn't find a fact that goes with this fact id. When this happens, under normal conditions, the app should "fake" a review or somehow update the fact so it doesn't come up as most likely to be forgotten (i.e., other facts can be reviewed), but for now, while we hammer out the details of userParams, just don't display anything.
+    const quizDom$ = quiz$.map(quiz => quiz && quiz.risky && quiz.quizInfo ? quizToDOM(quiz) : null);
+
     const answerButton$ = xs.merge(sources.DOM.select('form').events('submit').map(e => {
         e.preventDefault();
         var node = (document.querySelector('#answer-text') as any);
@@ -94,7 +99,7 @@ function makeDOMStream(sources: CycleSources): CycleSinks {
     const questionAnswerDom$ = questionAnswerResult$.map(o => o.DOM);
     const quizAllDom$ = xs.merge(questionAnswerDom$, quizDom$);
 
-    const fact$ = known$.map(knownFactIds => xs.fromPromise(tono5k.whatToLearn(knownFactIds))).flatten().remember();
+    const fact$ = xs.combine(known$, factData$).map(([knownFactIds, factData]) => xs.fromPromise(tono5k.whatToLearn(factData, knownFactIds))).flatten().remember();
     const factDom$ = fact$.map(fact => fact ? newFactToDom(fact) : null);
     const learnedFact$ = sources.DOM.select('button#learned-button').events('click').compose(sampleCombine(fact$)).map(([_, fact]) => fact) as xs<WhatToLearnInfo>;
     const learnedFactDom$ = learnedFact$.map(fact => p("Great!"));

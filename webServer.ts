@@ -1,7 +1,7 @@
 import levelup = require('levelup');
 import xs from 'xstream';
 import { db, usersDb } from "./diskDb";
-import { getMostForgottenFact, getCurrentUpdates, getKnownFactIds, makeLeveldbOpts, submit, FactDb, doneQuizzing } from "./storageServer";
+import { FactDb, UserParams, getMostForgottenFact, getCurrentUpdates, getKnownFactIds, makeLeveldbOpts, submit, doneQuizzing, getUserParams, setUserParams } from "./storageServer";
 import { EbisuObject, ebisu } from "./ebisu";
 import { xstreamToPromise } from "./utils";
 import { SubmitToServer, MostForgottenToServer, MostForgottenFromServer, KnownFactIdsToServer, KnownFactIdsFromServer, DoneQuizzingToServer } from "./restInterfaces";
@@ -74,6 +74,10 @@ passport.use(new GitHubStrategy({
                 return;
             }
             usersDb.put(key, JSON.stringify(newProfile));
+
+            const params: UserParams = { id: key, doctypes: [] };
+            setUserParams(db, key, params);
+
             done(null, newProfile);
         })
     }));
@@ -136,6 +140,20 @@ app.post('/api/doneQuizzing', ensureAuthenticated, async (req, res) => {
 app.get('/api/private', ensureAuthenticated, (req, res) => {
     res.json(req.user);
 })
+
+app.get('/api/userParams', ensureAuthenticated, async (req, res) => {
+    const user: string = req.user && req.user.appKey;
+    const params = (await xstreamToPromise(getUserParams(db, user)))[0];
+    res.json(params);
+});
+app.post('/api/userParams', ensureAuthenticated, async (req, res) => {
+    const user: string = req.user && req.user.appKey;
+    const params = req.body;
+    setUserParams(db, user, params);
+    res.status(200).send('OK');
+});
+
+
 
 app.listen(port, () => { console.log(`Started: http://127.0.0.1:${port}`) });
 
