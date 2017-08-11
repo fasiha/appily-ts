@@ -96,7 +96,8 @@ function main(sources) {
     const userParams$: xs<UserParams> = sources.HTTP.select('params')
         .flatten()
         .map(res => res.body)
-        .replaceError(e => xs.of(null));
+        .replaceError(e => xs.of(null))
+        .filter(x => !!x);
 
     const authStatus$ = sources.HTTP.select('ping')
         .flatten()
@@ -131,12 +132,13 @@ function main(sources) {
             .remember();
     }
 
+    userParams$.addListener({ next: x => console.log('userparams', x) })
     const sinks = Array.from(docid2module.entries()).map(([docId, mod]) => {
         const mysources: CycleSources = {
             DOM: sources.DOM,
             quiz: quiz$.filter(quiz => quiz && quiz.risky && quiz.docId === docId),
             known: docIdModToKnownStream(docId, mod),
-            params: userParams$.map(params => params.doctypes.find(doctype => doctype.name === docId))
+            params: userParams$.map(params => params.doctypes.find(doctype => doctype.name === docId)).filter(x => !!x)
         };
         const all = isolate(mod.makeDOMStream)(mysources);
         all.learned.addListener({

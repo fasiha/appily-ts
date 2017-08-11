@@ -71,7 +71,10 @@ function newFactToDom(fact: any): VNode {
 }
 
 function makeDOMStream(sources: CycleSources): CycleSinks {
-    const factData$: MemoryStream<TonoData> = sources.params.map(docparam => xs.fromPromise(tono5k.setup(docparam.sources))).flatten().remember();
+    const factData$: MemoryStream<TonoData> = sources.params
+        .map(docparam => xs.fromPromise(tono5k.setup(docparam.sources)))
+        .flatten()
+        .remember();
 
     const quiz$ = xs.combine(sources.quiz, factData$)
         .map(([quiz, factData]: [WhatToQuizInfo, TonoData]) => xs.fromPromise(
