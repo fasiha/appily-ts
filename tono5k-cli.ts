@@ -43,7 +43,7 @@ interface DoneQuizzingInfo {
 async function administerQuiz(doneQuizzing: DoneQuizzingFunction, factId: string, allUpdates: FactUpdate[]) {
     console.log(`¡¡¡🎆 QUIZ TIME 🎇!!!`);
 
-    let quiz: HowToQuizInfo = await tono5k.howToQuiz(await dataPromise, factId);
+    let quiz: HowToQuizInfo = tono5k.howToQuiz(await dataPromise, factId);
     let fact = quiz.fact;
     const alpha = 'ABCDEFGHIJKLM'.split('');
 

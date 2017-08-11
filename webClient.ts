@@ -8,7 +8,7 @@ import { div, ul, li, button, p, a, span, input, VNode, makeDOMDriver } from '@c
 import sampleCombine from 'xstream/extra/sampleCombine'
 import { makeHTTPDriver } from '@cycle/http';
 
-import { FactUpdate, FactDb, UserParams, makeLeveldbOpts } from "./storageServer";
+import { FactUpdate, FactDb, UserParams, DoctypeParams, makeLeveldbOpts } from "./storageServer";
 import { EbisuObject, ebisu } from "./ebisu";
 import { xstreamToPromise, endsWith, elapsedHours } from "./utils";
 import { WhatToLearnInfo, WhatToQuizInfo, FactDbCycle, CycleSinks, CycleSources } from "./cycleInterfaces";
@@ -72,42 +72,60 @@ function doneQuizzing(docId: string, activelyQuizzedFactId: string, allQuizzedFa
     return fetch('/api/doneQuizzing', postObject(submitting));
 }
 
-function paramsDOM() {
+function paramsDOM(params: UserParams) {
+    // let docsSources = new Map(params.doctypes.map(doctype => [doctype.name, doctype.sources.join(',')]));
+    let docSources: Map<string, string> = new Map();
+    for (const doctype of params.doctypes) {
+        docSources.set(doctype.name, doctype.sources.join(','))
+    }
+    for (const key of Array.from(docid2module.keys())) {
+        if (!docSources.has(key)) {
+            docSources.set(key, '');
+        }
+    }
     return div([
-        ul(Array.from(docid2module.keys()).map(docId => li([
-            span(docId),
-            input(`.appended .appended-${docId}`, { type: 'text' })
+        ul(Array.from(docSources.entries()).map(([docId, val]) => li([
+            span(docId + ' '),
+            input(`.appended .appended-${docId}`, { attrs: { type: 'text', value: val } })
         ]))),
         button('#params-save', 'Save')
     ]);
 }
 
 function main(sources) {
-    const paramsStrings$ = sources.DOM.select('button#params-save')
+    const doctypeParams$: xs<DoctypeParams[]> = sources.DOM.select('button#params-save')
         .events('click')
-        .map(_ => Array.from(document.querySelectorAll("input.appended")).map((x: HTMLInputElement) => x.value));
-    paramsStrings$.addListener({ next: x => console.log('paramsStrings', x) });
+        .map(_ => Array.from(document.querySelectorAll("input.appended")).map(
+            (x: HTMLInputElement): DoctypeParams => ({
+                name: x.className.match(/appended-\S+/)[0].split('-').slice(1).join('-'),
+                sources: x.value.trim().split(/\s+/)
+            })));
+    doctypeParams$.addListener({ next: x => console.log('doctypes', x) });
 
     // Login
     const getAuthStatus$ = xs.of(true).mapTo({ url: '/api/private', category: 'ping', method: 'GET' });
     const getUserParams$ = xs.of({ url: '/api/userParams', category: 'params', method: 'GET' });
-    const httpRequests$ = xs.merge(getUserParams$, getAuthStatus$);
 
     const userParams$: xs<UserParams> = sources.HTTP.select('params')
         .flatten()
         .map(res => res.body)
-        .replaceError(e => xs.of(null))
-        .filter(x => !!x);
+        .replaceError(e => xs.of(null));
+    userParams$.addListener({ next: x => console.log('userParams', x) });
+
+    const updatedUserParams$ = xs.combine(userParams$, doctypeParams$).map(([userParams, doctypes]: [UserParams, DoctypeParams[]]) => {
+        const newParams: UserParams = { id: userParams.id, displayName: userParams.displayName, doctypes };
+        return { url: 'api/userParams', category: 'writeParams', method: 'POST', send: newParams }
+    })
 
     const authStatus$ = sources.HTTP.select('ping')
         .flatten()
         .map(o => !o.unauthorized)
         .replaceError(e => xs.of(false)) as xs<Boolean>;
-    const authDom$ = authStatus$.map(loggedIn => {
+    const authDom$ = xs.combine(authStatus$, userParams$).map(([loggedIn, params]) => {
         if (loggedIn) {
             return div([
                 p('Logged in!'),
-                paramsDOM(),
+                paramsDOM(params),
                 button('.hit-me', 'Hit me')
             ])
         } else {
@@ -132,13 +150,12 @@ function main(sources) {
             .remember();
     }
 
-    userParams$.addListener({ next: x => console.log('userparams', x) })
     const sinks = Array.from(docid2module.entries()).map(([docId, mod]) => {
         const mysources: CycleSources = {
             DOM: sources.DOM,
             quiz: quiz$.filter(quiz => quiz && quiz.risky && quiz.docId === docId),
             known: docIdModToKnownStream(docId, mod),
-            params: userParams$.map(params => params.doctypes.find(doctype => doctype.name === docId)).filter(x => !!x)
+            params: userParams$.filter(x => !!x).map(params => params.doctypes.find(doctype => doctype.name === docId)).filter(x => !!x)
         };
         const all = isolate(mod.makeDOMStream)(mysources);
         all.learned.addListener({
@@ -165,6 +182,8 @@ function main(sources) {
             element
         ]);
     });
+
+    const httpRequests$ = xs.merge(getUserParams$, getAuthStatus$, updatedUserParams$);
 
     return {
         DOM: vdom$,

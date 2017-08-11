@@ -72,18 +72,18 @@ function newFactToDom(fact: any): VNode {
 
 function makeDOMStream(sources: CycleSources): CycleSinks {
     const factData$: MemoryStream<TonoData> = sources.params
-        .map(docparam => xs.fromPromise(tono5k.setup(docparam.sources)))
+        .map(docparam => {
+            return xs.fromPromise(Promise.all(
+                docparam.sources.map(url => fetch(url)
+                    .then(res => res.text())))
+                .then(raws => tono5k.setup(raws)));
+        })
         .flatten()
         .remember();
 
     const quiz$ = xs.combine(sources.quiz, factData$)
-        .map(([quiz, factData]: [WhatToQuizInfo, TonoData]) => xs.fromPromise(
-            tono5k.howToQuiz(factData, quiz.update.factId).then(quizInfo => {
-                quiz.quizInfo = quizInfo;
-                return quiz;
-            })
-        ))
-        .flatten().remember() as MemoryStream<WhatToQuizInfo>;
+        .map(([quiz, factData]: [WhatToQuizInfo, TonoData]) => Object.assign(quiz, { quizInfo: tono5k.howToQuiz(factData, quiz.update.factId) }))
+        .remember() as MemoryStream<WhatToQuizInfo>;
     const known$ = sources.known;
     // quiz$.addListener({ next: x => console.log('quiz3', x) })
 
