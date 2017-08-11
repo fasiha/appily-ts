@@ -1,7 +1,7 @@
 import { FactUpdate, FactDb } from "./storageServer";
 import { EbisuObject, ebisu } from "./ebisu";
 import { cliPrompt, endsWith, elapsedHours } from "./utils";
-import { Tono, HowToQuizInfo, tono5k } from "./tono5k";
+import { Tono, TonoData, HowToQuizInfo, tono5k } from "./tono5k";
 import { FactDbCli, SubmitFunction, DoneQuizzingFunction } from "./cliInterface";
 
 const newlyLearned = ebisu.defaultModel(0.25, 2.5);
@@ -9,8 +9,12 @@ const buryForever = ebisu.defaultModel(Infinity);
 
 export const tono5kCli: FactDbCli = { administerQuiz, findAndLearn, stripFactIdOfSubfact: tono5k.stripFactIdOfSubfact };
 
+const TONO_URL = "https://raw.githubusercontent.com/fasiha/tono-yamazaki-maekawa/master/tono.json";
+import fetch from "node-fetch";
+let dataPromise: Promise<TonoData> = fetch(TONO_URL).then(res => res.text()).then(s => tono5k.setup([s]));
+
 async function findAndLearn(submit: SubmitFunction, knownFactIds: string[]): Promise<void> {
-    let fact: Tono = await tono5k.whatToLearn(knownFactIds);
+    let fact: Tono = await tono5k.whatToLearn(await dataPromise, knownFactIds);
 
     if (fact) {
         console.log(`Hey! Learn this:`);
@@ -39,7 +43,7 @@ interface DoneQuizzingInfo {
 async function administerQuiz(doneQuizzing: DoneQuizzingFunction, factId: string, allUpdates: FactUpdate[]) {
     console.log(`¡¡¡🎆 QUIZ TIME 🎇!!!`);
 
-    let quiz: HowToQuizInfo = await tono5k.howToQuiz(factId);
+    let quiz: HowToQuizInfo = await tono5k.howToQuiz(await dataPromise, factId);
     let fact = quiz.fact;
     const alpha = 'ABCDEFGHIJKLM'.split('');
 

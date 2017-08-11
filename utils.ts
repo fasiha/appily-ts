@@ -90,3 +90,7 @@ export function xstreamToPromise<T>(x: xs<T>): Promise<T[]> {
             });
     });
 }
+
+export function flatten1(v) {
+    return v.reduce((prev, curr) => prev.concat(curr), v, []);
+}
