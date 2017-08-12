@@ -82,7 +82,6 @@ function makeDOMStream(sources: CycleSources): CycleSinks {
 
     const quiz$: MemoryStream<WhatToQuizInfo> = xs.combine(sources.quiz, factData$)
         .map(([quiz, factData]: [WhatToQuizInfo, TonoData]) => {
-            // Object.assign(quiz, { quizInfo: tono5k.howToQuiz(factData, quiz.update.factId) })
             quiz.howToQuiz = tono5k.howToQuiz(factData, quiz.update.factId);
             return quiz;
         })
