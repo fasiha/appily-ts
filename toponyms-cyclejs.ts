@@ -19,11 +19,11 @@ export const toponymsCyclejs: FactDbCycle = {
 
 function quizToDOM(quiz: WhatToQuizInfo): VNode {
     const factId = quiz.update.factId;
-    const quizInfo = quiz.quizInfo;
-    const fact: Fact = quizInfo.fact;
+    const howToQuiz = quiz.howToQuiz;
+    const fact: Fact = howToQuiz.fact;
     let vec = [];
     if (endsWith(factId, '-kanji')) {
-        const confusers: Fact[] = quizInfo.confusers;
+        const confusers: Fact[] = howToQuiz.confusers;
         let s = `What’s the kanji for: ${furiganaStringToReading(fact)}`;
         vec.push(p(s));
         vec.push(ol(confusers.map((fact, idx) => li([button(`#answer-${idx}.answer`, `${idx + 1}`), span(` ${furiganaStringToPlain(fact)}`)]))));
@@ -38,20 +38,20 @@ function quizToDOM(quiz: WhatToQuizInfo): VNode {
 
 
 
-function checkAnswer([answer, quiz]: [number | string, WhatToQuizInfo]) {
+function checkAnswer([answer, quiz]: [number | string, WhatToQuizInfo]): { DOM: VNode, sink: [any, WhatToQuizInfo, any] } {
     let result: boolean;
     let info: any = { hoursWaited: elapsedHours(quiz.startTime) };
-    const quizInfo: HowToQuizInfo = quiz.quizInfo;
+    const howToQuiz: HowToQuizInfo = quiz.howToQuiz;
     if (typeof answer === 'string') {
-        result = furiganaStringToReading(quizInfo.fact) === answer;
+        result = furiganaStringToReading(howToQuiz.fact) === answer;
         info.result = result;
         info.response = answer;
     } else {
         // result = furiganaStringToPlain(confusers[responseIdx]) === furiganaStringToPlain(fact);
-        result = furiganaStringToPlain(quizInfo.confusers[answer]) === furiganaStringToPlain(quizInfo.fact);
+        result = furiganaStringToPlain(howToQuiz.confusers[answer]) === furiganaStringToPlain(howToQuiz.fact);
         info.result = result;
-        info.response = furiganaStringToPlain(quizInfo.confusers[answer]);
-        info.confusers = quizInfo.confusers.map(furiganaStringToPlain);
+        info.response = furiganaStringToPlain(howToQuiz.confusers[answer]);
+        info.confusers = howToQuiz.confusers.map(furiganaStringToPlain);
     };
     // console.log('COMMITTING!', info);
     return { DOM: p(result ? '✅✅✅!' : '❌❌❌'), sink: [answer, quiz, info] };
@@ -76,8 +76,8 @@ function makeDOMStream(sources: CycleSources): CycleSinks {
         .remember();
 
     const quiz$ = xs.combine(sources.quiz, factData$)
-        .map(([quiz, factData]: [WhatToQuizInfo, ToponymsData]) => xs.fromPromise(toponyms.howToQuiz(factData, quiz.update.factId).then(quizInfo => {
-            quiz.quizInfo = quizInfo;
+        .map(([quiz, factData]: [WhatToQuizInfo, ToponymsData]) => xs.fromPromise(toponyms.howToQuiz(factData, quiz.update.factId).then(howToQuiz => {
+            quiz.howToQuiz = howToQuiz;
             return quiz;
         })))
         .flatten().remember() as MemoryStream<WhatToQuizInfo>;

@@ -7,7 +7,7 @@ export interface WhatToQuizInfo {
     update: FactUpdate;
     risky: boolean;
     startTime: Date;
-    quizInfo?: any;
+    howToQuiz?: any;
     docId?: string;
     // allRelatedUpdates?: FactUpdate[];
     // factId?: string;
@@ -28,7 +28,7 @@ export interface CycleSources {
 export interface CycleSinks {
     DOM: any;
     learned: any;
-    quizzed: any;
+    quizzed: xs<[any, WhatToQuizInfo, any]>;
 }
 export type MakeDOMStreamFunction = (source: CycleSources) => CycleSinks;
 

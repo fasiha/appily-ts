@@ -157,7 +157,7 @@ function main(sources) {
             known: docIdModToKnownStream(docId, mod),
             params: userParams$.filter(x => !!x).map(params => params.doctypes.find(doctype => doctype.name === docId)).filter(x => !!x)
         };
-        const all = isolate(mod.makeDOMStream)(mysources);
+        const all: CycleSinks = isolate(mod.makeDOMStream)(mysources);
         all.learned.addListener({
             next: fact => {
                 const relateds = docid2module.get(docId).factToFactIds(fact);
@@ -165,9 +165,9 @@ function main(sources) {
             }
         });
         all.quizzed.addListener({
-            next: ([ans, quiz, info]) => {
+            next: ([ans, quiz, info]: [any, WhatToQuizInfo, any]) => {
                 const docId = quiz.update.docId;
-                const fact = quiz.quizInfo.fact;
+                const fact = quiz.howToQuiz.fact;
                 doneQuizzing(docId, quiz.update.factId, docid2module.get(docId).factToFactIds(fact), [info]);
             }
         })

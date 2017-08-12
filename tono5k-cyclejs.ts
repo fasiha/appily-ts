@@ -15,11 +15,11 @@ export const tono5kCyclejs: FactDbCycle = {
 
 function quizToDOM(quiz: WhatToQuizInfo): VNode {
     const factId = quiz.update.factId;
-    const quizInfo = quiz.quizInfo;
-    const fact: Tono = quizInfo.fact;
+    const howToQuiz = quiz.howToQuiz;
+    const fact: Tono = howToQuiz.fact;
     let vec = [];
     if (endsWith(factId, '-kanji') || endsWith(factId, '-meaning')) {
-        const confusers: Tono[] = quizInfo.confusers;
+        const confusers: Tono[] = howToQuiz.confusers;
         if (endsWith(factId, '-kanji')) {
             let s = `What’s the kanji for: ${fact.readings.join('・')} and meaning 「${fact.meaning}」?`;
             vec.push(p(s));
@@ -44,19 +44,19 @@ function quizToDOM(quiz: WhatToQuizInfo): VNode {
 
 
 
-function checkAnswer([answer, quiz]: [number | string, WhatToQuizInfo]) {
+function checkAnswer([answer, quiz]: [number | string, WhatToQuizInfo]): { DOM: VNode, sink: [any, WhatToQuizInfo, any] } {
     let result: boolean;
     let info: any = { hoursWaited: elapsedHours(quiz.startTime) };
-    const quizInfo: HowToQuizInfo = quiz.quizInfo;
+    const howToQuiz: HowToQuizInfo = quiz.howToQuiz;
     if (typeof answer === 'string') {
-        result = quizInfo.fact.readings.indexOf(answer) >= 0;
+        result = howToQuiz.fact.readings.indexOf(answer) >= 0;
         info.result = result;
         info.response = answer;
     } else {
-        result = quizInfo.confusers[answer].num === quizInfo.fact.num
+        result = howToQuiz.confusers[answer].num === howToQuiz.fact.num
         info.result = result;
-        info.response = quizInfo.confusers[answer].num;
-        info.confusers = quizInfo.confusers.map(fact => fact.num);
+        info.response = howToQuiz.confusers[answer].num;
+        info.confusers = howToQuiz.confusers.map(fact => fact.num);
     };
     // console.log('COMMITTING!', info);
     return { DOM: p(result ? '✅✅✅!' : '❌❌❌'), sink: [answer, quiz, info] };
@@ -80,14 +80,18 @@ function makeDOMStream(sources: CycleSources): CycleSinks {
         .flatten()
         .remember();
 
-    const quiz$ = xs.combine(sources.quiz, factData$)
-        .map(([quiz, factData]: [WhatToQuizInfo, TonoData]) => Object.assign(quiz, { quizInfo: tono5k.howToQuiz(factData, quiz.update.factId) }))
-        .remember() as MemoryStream<WhatToQuizInfo>;
+    const quiz$: MemoryStream<WhatToQuizInfo> = xs.combine(sources.quiz, factData$)
+        .map(([quiz, factData]: [WhatToQuizInfo, TonoData]) => {
+            // Object.assign(quiz, { quizInfo: tono5k.howToQuiz(factData, quiz.update.factId) })
+            quiz.howToQuiz = tono5k.howToQuiz(factData, quiz.update.factId);
+            return quiz;
+        })
+        .remember();
     const known$ = sources.known;
     // quiz$.addListener({ next: x => console.log('quiz3', x) })
 
     // `quiz.quizInfo` is null when the FactDb couldn't find a fact that goes with this fact id. When this happens, under normal conditions, the app should "fake" a review or somehow update the fact so it doesn't come up as most likely to be forgotten (i.e., other facts can be reviewed), but for now, while we hammer out the details of userParams, just don't display anything.
-    const quizDom$ = quiz$.map(quiz => quiz && quiz.risky && quiz.quizInfo ? quizToDOM(quiz) : null);
+    const quizDom$ = quiz$.map(quiz => quiz && quiz.risky && quiz.howToQuiz ? quizToDOM(quiz) : null);
 
     const answerButton$ = xs.merge(sources.DOM.select('form').events('submit').map(e => {
         e.preventDefault();
