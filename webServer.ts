@@ -6,8 +6,10 @@ import { EbisuObject, ebisu } from "./ebisu";
 import { xstreamToPromise } from "./utils";
 import { SubmitToServer, MostForgottenToServer, MostForgottenFromServer, KnownFactIdsToServer, KnownFactIdsFromServer, DoneQuizzingToServer } from "./restInterfaces";
 
+import { readFileSync } from 'fs';
+const config = JSON.parse(readFileSync(__dirname + '/.data/default.json', 'utf8'));
+
 const assert = require('assert');
-const config = require('config');
 const express = require('express');
 const bodyParser = require('body-parser');
 const session = require('express-session');
@@ -18,15 +20,15 @@ const btoa = require('btoa');
 import { randomBytes } from 'crypto';
 
 // Express setup
-assert(config.has('sessionSecret'));
+assert(config.sessionSecret);
 
-const port = 3001;
+const port = process.env.PORT || 3001;
 const app = express();
 app.set('x-powered-by', false);
 app.use(bodyParser.json());
 app.use('/', express.static('client'));
 app.use(session({
-    secret: config.get('sessionSecret'),
+    secret: config.sessionSecret,
     resave: false,
     saveUninitialized: false,
     httpOnly: true,
@@ -38,7 +40,7 @@ app.use(passport.initialize());
 app.use(passport.session());
 
 // Passport setup
-assert(config.has('github.clientId') && config.has('github.clientSecret'));
+assert(config.github && config.github.clientId && config.github.clientSecret);
 
 function profileToKey(profile): string {
     return btoa(profile.provider + '-' + profile.id);
@@ -60,8 +62,8 @@ passport.deserializeUser((id, done) => {
 });
 
 passport.use(new GitHubStrategy({
-    clientID: config.get('github.clientId'),
-    clientSecret: config.get('github.clientSecret'),
+    clientID: config.github.clientId,
+    clientSecret: config.github.clientSecret,
     callbackURL: `http://127.0.0.1:${port}/auth/github/callback`
 },
     function (accessToken, refreshToken, profile, done) {
