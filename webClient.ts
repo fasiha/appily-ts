@@ -100,7 +100,7 @@ function main(sources) {
                 name: x.className.match(/appended-\S+/)[0].split('-').slice(1).join('-'),
                 sources: x.value.trim().split(/\s+/)
             })));
-    doctypeParams$.addListener({ next: x => console.log('doctypes', x) });
+    // doctypeParams$.addListener({ next: x => console.log('doctypes', x) });
 
     // Login
     const getAuthStatus$ = xs.of(true).mapTo({ url: '/api/private', category: 'ping', method: 'GET' });
@@ -110,7 +110,7 @@ function main(sources) {
         .flatten()
         .map(res => res.body)
         .replaceError(e => xs.of(null));
-    userParams$.addListener({ next: x => console.log('userParams', x) });
+    // userParams$.addListener({ next: x => console.log('userParams', x) });
 
     const updatedUserParams$ = xs.combine(userParams$, doctypeParams$).map(([userParams, doctypes]: [UserParams, DoctypeParams[]]) => {
         const newParams: UserParams = { id: userParams.id, displayName: userParams.displayName, doctypes };
@@ -168,7 +168,7 @@ function main(sources) {
             next: ([ans, quiz, info]) => {
                 const docId = quiz.update.docId;
                 const fact = quiz.quizInfo.fact;
-                doneQuizzing(docId, quiz.factId, docid2module.get(docId).factToFactIds(fact), [info]);
+                doneQuizzing(docId, quiz.update.factId, docid2module.get(docId).factToFactIds(fact), [info]);
             }
         })
         return all;

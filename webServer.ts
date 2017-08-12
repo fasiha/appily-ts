@@ -110,7 +110,6 @@ async function mostForgottenFunction(db, user, submitted: MostForgottenToServer)
 }
 
 app.post('/api/mostForgotten', ensureAuthenticated, async (req, res) => {
-    // console.log('whee', [req.user , 'ammy'])
     const user = req.user && req.user.appKey;
     res.json(await mostForgottenFunction(db, user, req.body));
 })
@@ -126,6 +125,7 @@ app.post('/api/knownFactIds', ensureAuthenticated, async (req, res) => {
 })
 
 async function doneQuizzingFunction(db, user, submitted: DoneQuizzingToServer) {
+    assert(submitted.activelyQuizzedFactId);
     const streams = submitted.allQuizzedFactIds.map(factId => getCurrentUpdates(db, makeLeveldbOpts(user, submitted.docId, factId, true)))
     const allUpdates = await xstreamToPromise(xs.merge(...streams));
     doneQuizzing(db, user, submitted.docId, submitted.activelyQuizzedFactId, allUpdates, submitted.infos[0])
