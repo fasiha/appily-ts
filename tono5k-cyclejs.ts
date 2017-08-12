@@ -8,7 +8,6 @@ import { div, button, p, ol, li, span, input, form, makeDOMDriver, VNode } from 
 import sampleCombine from 'xstream/extra/sampleCombine'
 
 export const tono5kCyclejs: FactDbCycle = {
-    setup: tono5k.setup,
     makeDOMStream,
     stripFactIdOfSubfact: tono5k.stripFactIdOfSubfact,
     factToFactIds: tono5k.factToFactIds

@@ -1,4 +1,4 @@
-import { WEB_URL, Fact, HowToQuizInfo, toponyms } from "./toponyms";
+import { WEB_URL, Fact, HowToQuizInfo, ToponymsData, toponyms } from "./toponyms";
 import { furiganaStringToReading, parseMarkdownLinkRuby, furiganaStringToPlain, Furigana, Ruby } from "./ruby";
 
 import { xstreamToPromise, endsWith, elapsedHours } from "./utils";
@@ -58,15 +58,25 @@ function checkAnswer([answer, quiz]: [number | string, WhatToQuizInfo]) {
 }
 
 
-function newFactToDom(fact: WhatToLearnInfo): VNode {
+function newFactToDom(fact): VNode {
     if (!fact) { return null; }
-    return div([p("Hey! Learn this: " + JSON.stringify(fact.fact)),
+    return div([p("Hey! Learn this: " + JSON.stringify(fact)),
     button("#learned-button", "Learned!")]);
 }
 
 function makeDOMStream(sources: CycleSources): CycleSinks {
-    const quiz$ = sources.quiz
-        .map((quiz: WhatToQuizInfo) => xs.fromPromise(toponyms.howToQuiz(quiz.update.factId).then(quizInfo => {
+    const factData$: MemoryStream<ToponymsData> = sources.params
+        .map(docparam => {
+            return xs.fromPromise(Promise.all(
+                docparam.sources.map(url => fetch(url)
+                    .then(res => res.text())))
+                .then(raws => toponyms.setup(raws)));
+        })
+        .flatten()
+        .remember();
+
+    const quiz$ = xs.combine(sources.quiz, factData$)
+        .map(([quiz, factData]: [WhatToQuizInfo, ToponymsData]) => xs.fromPromise(toponyms.howToQuiz(factData, quiz.update.factId).then(quizInfo => {
             quiz.quizInfo = quizInfo;
             return quiz;
         })))
@@ -87,7 +97,7 @@ function makeDOMStream(sources: CycleSources): CycleSinks {
     const questionAnswerDom$ = questionAnswerResult$.map(o => o.DOM);
     const quizAllDom$ = xs.merge(questionAnswerDom$, quizDom$);
 
-    const fact$ = known$.map(knownFactIds => xs.fromPromise(toponyms.whatToLearn(knownFactIds))).flatten().remember();
+    const fact$ = xs.combine(known$, factData$).map(([knownFactIds, factData]) => xs.fromPromise(toponyms.whatToLearn(factData, knownFactIds))).flatten().remember();
     const factDom$ = fact$.map(fact => fact ? newFactToDom(fact) : null);
     const learnedFact$ = sources.DOM.select('button#learned-button').events('click').compose(sampleCombine(fact$)).map(([_, fact]) => fact) as xs<WhatToLearnInfo>;
     const learnedFactDom$ = learnedFact$.map(fact => p("Great!"));

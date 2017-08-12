@@ -14,7 +14,6 @@ export interface WhatToQuizInfo {
 }
 
 export interface FactDbCycle {
-    setup: (inputs: string[]) => Promise<any>;
     stripFactIdOfSubfact: (factId: string) => string;
     factToFactIds: (fact: any) => string[];
     makeDOMStream: MakeDOMStreamFunction;
