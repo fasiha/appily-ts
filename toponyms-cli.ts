@@ -2,7 +2,7 @@ import { FactUpdate, FactDb } from "./storageServer";
 import { EbisuObject, ebisu } from "./ebisu";
 import { cliPrompt, endsWith, elapsedHours } from "./utils";
 import { furiganaStringToReading, parseMarkdownLinkRuby, furiganaStringToPlain, Furigana, Ruby } from "./ruby";
-import { WEB_URL, Fact, HowToQuizInfo, toponyms } from "./toponyms";
+import { WEB_URL, Fact, HowToQuizInfo, ToponymsData, toponyms } from "./toponyms";
 import { FactDbCli, SubmitFunction, DoneQuizzingFunction } from "./cliInterface";
 
 const newlyLearned = ebisu.defaultModel(0.25, 2.5);
@@ -14,8 +14,13 @@ function factIdToURL(s: string) {
 
 export const toponymsCli: FactDbCli = { administerQuiz, findAndLearn, stripFactIdOfSubfact: toponyms.stripFactIdOfSubfact };
 
+const TOPONYMS_URL = "https://raw.githubusercontent.com/fasiha/toponyms-and-nymes/gh-pages/README.md";
+import fetch from "node-fetch";
+let dataPromise: Promise<ToponymsData> = fetch(TOPONYMS_URL).then(res => res.text()).then(s => toponyms.setup([s]));
+
+
 async function findAndLearn(submit: SubmitFunction, knownFactIds: string[]) {
-    const fact: Fact = await toponyms.whatToLearn(knownFactIds);
+    const fact: Fact = await toponyms.whatToLearn(await dataPromise, knownFactIds);
     if (fact) {
         let factIds: string[] = toponyms.factToFactIds(fact);
 
@@ -38,7 +43,7 @@ async function findAndLearn(submit: SubmitFunction, knownFactIds: string[]) {
 
 async function administerQuiz(doneQuizzing: DoneQuizzingFunction, factId: string, allUpdates: FactUpdate[]) {
     console.log(`¡¡¡🎆 QUIZ TIME 🎇!!!`);
-    let quiz: HowToQuizInfo = await toponyms.howToQuiz(factId);
+    let quiz: HowToQuizInfo = await toponyms.howToQuiz(await dataPromise, factId);
     let fact = quiz.fact;
     const alpha = 'ABCDEFGHIJKLM'.split('');
 

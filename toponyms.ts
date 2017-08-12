@@ -7,7 +7,6 @@ import { uncachedUrlFetch, elapsedHours, all, concatMap } from "./utils";
 
 export const toponyms: FactDb = { setup, whatToLearn, howToQuiz, stripFactIdOfSubfact, factToFactIds };
 
-const TOPONYMS_URL = "https://raw.githubusercontent.com/fasiha/toponyms-and-nymes/gh-pages/README.md";
 export const WEB_URL = "https://fasiha.github.io/toponyms-and-nymes/";
 const RUBY_START = '- Ruby: ';
 
