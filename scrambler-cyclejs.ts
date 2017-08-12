@@ -19,15 +19,15 @@ function quizToDOM(quiz: WhatToQuizInfo, answer: string): VNode {
     const howToQuiz: HowToQuizInfo = quiz.howToQuiz;
     const fact: Fact = howToQuiz.fact;
 
+    const idxs = answer.split(/\D+/).map(s => parseFloat(s) - 1);
 
     let vec = [p(`¡¡¡QUIZ TIME!!! ${quiz.prob.toFixed(5)}`),
     p('「' + fact.translation + '」'),
-    ol(".abc-bullets", howToQuiz.scrambled.map(s => li(s)))];
+    ol(".abc-bullets", howToQuiz.scrambled.map((s, idx) => li(idxs.indexOf(idx) >= 0 ? '.grayed' : '', s)))];
     vec.push(form('.answer-form', { attrs: { autocomplete: "off", action: 'javascript:void(0);' } },
         [input('#answer-text', { type: "text", placeholder: "Separate by spaces or commas" }),
         button('#answer-submit', 'Submit')]));
 
-    const idxs = answer.split(/\D+/).map(s => parseFloat(s) - 1);
     const scrambled = howToQuiz.scrambled;
     const reconstructed = idxs.map(i => scrambled[i]).join('');
     vec.push(p(`So far: 「${reconstructed}」.`))

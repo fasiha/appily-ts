@@ -90,6 +90,7 @@ function paramsDOM(params: UserParams) {
         ]))),
         button('#params-save', 'Save')
     ]);
+    // Save *SHOULD* update the stream so I don't have to refresh
 }
 
 function main(sources) {
