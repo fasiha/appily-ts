@@ -1,8 +1,8 @@
-import { shuffle } from "lodash";
+const shuffle = require('lodash.shuffle');
 
 import { FactUpdate, FactDb } from "./storageServer";
 import { ebisu, EbisuObject } from "./ebisu";
-import { uncachedUrlFetch, dedupeViaSets, endsWith, elapsedHours, all, any, concatMap } from "./utils";
+import { dedupeViaSets, endsWith, elapsedHours, all, any, concatMap } from "./utils";
 import { furiganaStringToPlain, parseJmdictFurigana } from "./ruby";
 
 export const scrambler: FactDb = { setup, stripFactIdOfSubfact, whatToLearn, howToQuiz, factToFactIds };
@@ -30,14 +30,6 @@ function stripFactIdOfSubfact(factId: string): string {
 export interface Fact {
     text: string;
     translation: string;
-}
-
-async function urlToFacts(url: string): Promise<Fact[]> {
-    const lines = (await uncachedUrlFetch(url)).trim().split('\n');
-    return lines.map(s => {
-        const [text, translation] = s.split('\t');
-        return { text, translation };
-    });
 }
 
 function factToFactIds(fact: Fact): string[] {

@@ -1,8 +1,9 @@
-import { shuffle, sampleSize } from "lodash";
+const shuffle = require('lodash.shuffle');
+const sampleSize = require('lodash.sampleSize');
 
 import { FactUpdate, FactDb } from "./storageServer";
 import { ebisu, EbisuObject } from "./ebisu";
-import { uncachedUrlFetch, dedupeViaSets, endsWith, elapsedHours, all, any, concatMap } from "./utils";
+import { dedupeViaSets, endsWith, elapsedHours, all, any, concatMap } from "./utils";
 import { furiganaStringToPlain, parseJmdictFurigana } from "./ruby";
 
 export const tono5k: FactDb = { setup, stripFactIdOfSubfact, whatToLearn, howToQuiz, factToFactIds };

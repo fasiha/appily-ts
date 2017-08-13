@@ -10,3 +10,4 @@ node_modules/
 level-session-store/
 myusers/
 .DS_Store
+client/testing.html

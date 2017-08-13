@@ -1,9 +1,11 @@
-import { shuffle, sampleSize } from "lodash";
+const shuffle = require('lodash.shuffle');
+const sampleSize = require('lodash.sampleSize');
+
 
 import { FactUpdate, FactDb } from "./storageServer";
 import { ebisu, EbisuObject } from "./ebisu";
 import { furiganaStringToReading, parseMarkdownLinkRuby, furiganaStringToPlain, Furigana, Ruby } from "./ruby";
-import { uncachedUrlFetch, elapsedHours, all, concatMap } from "./utils";
+import { elapsedHours, all, concatMap } from "./utils";
 
 export const toponyms: FactDb = { setup, whatToLearn, howToQuiz, stripFactIdOfSubfact, factToFactIds };
 
