@@ -61,10 +61,11 @@ passport.deserializeUser((id, done) => {
     });
 });
 
+assert(config.baseurl);
 passport.use(new GitHubStrategy({
     clientID: config.github.clientId,
     clientSecret: config.github.clientSecret,
-    callbackURL: `http://127.0.0.1:${port}/auth/github/callback`
+    callbackURL: `${config.baseurl}/auth/github/callback`
 },
     function (accessToken, refreshToken, profile, done) {
         const key = profileToKey(profile);
