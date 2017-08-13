@@ -2,7 +2,7 @@ import levelup = require("levelup");
 import { leveldbToStream } from "./storageServer";
 import { xstreamToPromise } from "./utils";
 
-const db: levelup.LevelUpBase<levelup.Batch> = levelup('./mydb');
+import { db } from './diskDb';
 
 const key2timestamp = s => new Date(JSON.parse(s).createdAt) as any;
 xstreamToPromise(leveldbToStream(db))

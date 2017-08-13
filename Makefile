@@ -15,5 +15,5 @@ watch:
 	fswatch -0 -o -l 0.1 webClient.js *-cyclejs.js *.js | xargs -0 -n 1 -I {} make
 
 backup:
-	tar cf mydb.tar mydb
+	tar cf data.tar .data
 	node printDbDated.js > mydb.txt
