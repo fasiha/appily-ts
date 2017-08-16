@@ -21,7 +21,7 @@ import { scramblerCyclejs } from "./scrambler-cyclejs";
 const docid2module: Map<string, FactDbCycle> = new Map([
     ["toponyms", toponymsCyclejs],
     ["tono5k", tono5kCyclejs],
-    // ["scrambler", scramblerCyclejs],
+    ["scrambler", scramblerCyclejs],
 ]);
 
 const PROB_THRESH = 0.25;
