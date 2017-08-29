@@ -33,11 +33,11 @@ export interface Tono {
     readings: string[];
     meaning: string;
     kanjis: string[];
-    roumaji: string;
     num: number;
-    freq: number;
-    disp: number;
-    register?: string;
+    // roumaji: string;
+    // freq: number;
+    // disp: number;
+    // register?: string;
 }
 
 function factToFactIds(fact: Tono): string[] {
