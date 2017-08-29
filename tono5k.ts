@@ -14,8 +14,8 @@ export interface TonoData {
     availableFactIds: Set<string>;
 }
 
-async function setup(inputs: string[]): Promise<TonoData> {
-    let parsed: Tono[] = concatMap(inputs, x => JSON.parse(x));
+async function setup(input: string): Promise<TonoData> {
+    let parsed: Tono[] = JSON.parse(input);
     const allFacts = parsed.map(tono => {
         tono.kanjis = dedupeViaSets(tono.kanjis.map(k => furiganaStringToPlain(parseJmdictFurigana(k))));
         return tono;

@@ -78,7 +78,7 @@ passport.use(new GitHubStrategy({
             }
             usersDb.put(key, JSON.stringify(newProfile));
 
-            const params: UserParams = { id: appKey, doctypes: [] };
+            const params: UserParams = { id: appKey, docs: [] };
             setUserParams(db, appKey, params);
 
             done(null, newProfile);

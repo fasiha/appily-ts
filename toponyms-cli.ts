@@ -16,7 +16,7 @@ export const toponymsCli: FactDbCli = { administerQuiz, findAndLearn, stripFactI
 
 const TOPONYMS_URL = "https://raw.githubusercontent.com/fasiha/toponyms-and-nymes/gh-pages/README.md";
 import fetch from "node-fetch";
-let dataPromise: Promise<ToponymsData> = fetch(TOPONYMS_URL).then(res => res.text()).then(s => toponyms.setup([s]));
+let dataPromise: Promise<ToponymsData> = fetch(TOPONYMS_URL).then(res => res.text()).then(s => toponyms.setup(s));
 
 
 async function findAndLearn(submit: SubmitFunction, knownFactIds: string[]) {

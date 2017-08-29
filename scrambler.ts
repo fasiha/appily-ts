@@ -14,11 +14,11 @@ export interface ScramblerData {
     availableFactIds: Set<string>;
 }
 
-async function setup(inputs: string[]): Promise<ScramblerData> {
-    const allFacts = concatMap(inputs, input => input.trim().split('\n').map(s => {
+async function setup(input: string): Promise<ScramblerData> {
+    const allFacts: Fact[] = input.trim().split('\n').map(s => {
         const [text, translation] = s.split('\t');
         return { text, translation };
-    }));
+    });
     const availableFactIds = new Set(concatMap(allFacts, factToFactIds));
     return { allFacts, availableFactIds };
 }

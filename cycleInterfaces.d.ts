@@ -1,6 +1,6 @@
 import xs, { MemoryStream } from 'xstream';
 import { VNode } from '@cycle/dom';
-import { DoctypeParams, FactUpdate } from "./storageServer";
+import { DocParams, FactUpdate } from "./storageServer";
 
 export interface WhatToQuizInfo {
     prob: number;
@@ -23,7 +23,7 @@ export interface CycleSources {
     DOM: any;
     quiz: any;
     known: MemoryStream<string[]>;
-    params: xs<DoctypeParams>;
+    params: xs<DocParams>;
 }
 export interface CycleSinks {
     DOM: any;

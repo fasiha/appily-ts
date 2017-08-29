@@ -133,7 +133,7 @@ export async function doneQuizzing(db: Db, USER: string, DOCID: string, factId: 
 }
 
 export interface FactDb {
-    setup: (inputs: string[]) => Promise<any>;
+    setup: (input: string) => Promise<any>;
     whatToLearn: (data: any, knownFactIds: string[]) => any;
     howToQuiz: (data: any, factId: string) => any;
     stripFactIdOfSubfact: (factId: string) => string;
@@ -143,13 +143,14 @@ export interface FactDb {
 
 // User stuff
 
-export interface DoctypeParams {
-    name: string;
-    sources: string[];
+export interface DocParams {
+    name: string; // "kyoto", e.g.
+    source: string; // url, etc.
+    format: string; // one of the formats this instance knows about ("toponyms" e.g.)
 }
 export interface UserParams {
     id: string;
-    doctypes: DoctypeParams[];
+    docs: DocParams[];
     displayName?: string;
 }
 

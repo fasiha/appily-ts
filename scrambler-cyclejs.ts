@@ -63,9 +63,7 @@ function newFactToDom(fact): VNode {
 function makeDOMStream(sources: CycleSources): CycleSinks {
     const factData$: MemoryStream<ScramblerData> = sources.params
         .map(docparam => {
-            return xs.fromPromise(Promise.all(
-                docparam.sources.map(url => fetch(url)
-                    .then(res => res.text())))
+            return xs.fromPromise(fetch(docparam.source).then(x => x.text())
                 .then(raws => scrambler.setup(raws)));
         })
         .flatten()

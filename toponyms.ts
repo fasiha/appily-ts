@@ -19,14 +19,13 @@ export interface ToponymsData {
     availableFactIds: Set<string>;
 }
 
-async function setup(inputs: string[]): Promise<ToponymsData> {
-    const allFacts = concatMap(inputs,
-        text => text
-            .trim()
-            .split('\n')
-            .filter(s => s.indexOf(RUBY_START) === 0)
-            .map(s => s.slice(RUBY_START.length))
-            .map(parseMarkdownLinkRuby))
+async function setup(input: string): Promise<ToponymsData> {
+    const allFacts = input
+        .trim()
+        .split('\n')
+        .filter(s => s.indexOf(RUBY_START) === 0)
+        .map(s => s.slice(RUBY_START.length))
+        .map(parseMarkdownLinkRuby);
     const availableFactIds = new Set(concatMap(allFacts, factToFactIds));
     return { allFacts, availableFactIds }
 }

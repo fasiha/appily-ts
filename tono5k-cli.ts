@@ -11,7 +11,7 @@ export const tono5kCli: FactDbCli = { administerQuiz, findAndLearn, stripFactIdO
 
 const TONO_URL = "https://raw.githubusercontent.com/fasiha/tono-yamazaki-maekawa/master/tono.json";
 import fetch from "node-fetch";
-let dataPromise: Promise<TonoData> = fetch(TONO_URL).then(res => res.text()).then(s => tono5k.setup([s]));
+let dataPromise: Promise<TonoData> = fetch(TONO_URL).then(res => res.text()).then(s => tono5k.setup(s));
 
 async function findAndLearn(submit: SubmitFunction, knownFactIds: string[]): Promise<void> {
     let fact: Tono = await tono5k.whatToLearn(await dataPromise, knownFactIds);

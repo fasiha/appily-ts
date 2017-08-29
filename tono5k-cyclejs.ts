@@ -72,10 +72,9 @@ function newFactToDom(fact: any): VNode {
 function makeDOMStream(sources: CycleSources): CycleSinks {
     const factData$: MemoryStream<TonoData> = sources.params
         .map(docparam => {
-            return xs.fromPromise(Promise.all(
-                docparam.sources.map(url => fetch(url)
-                    .then(res => res.text())))
-                .then(raws => tono5k.setup(raws)));
+            return xs.fromPromise(
+                fetch(docparam.source).then(x => x.text())
+                    .then(raws => tono5k.setup(raws)));
         })
         .flatten()
         .remember();
