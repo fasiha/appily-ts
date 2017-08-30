@@ -203,7 +203,10 @@ function main(sources) {
     };
 }
 
-run(main, {
+import onionify from 'cycle-onionify';
+import AppilyApp from './AppilyApp';
+const app = onionify(AppilyApp);
+run(app, {
     DOM: makeDOMDriver('#app'),
     HTTP: makeHTTPDriver()
 });

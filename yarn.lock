@@ -731,6 +731,12 @@ currently-unhandled@^0.4.1:
   dependencies:
     array-find-index "^1.0.1"
 
+cycle-onionify@^3.3.0:
+  version "3.3.0"
+  resolved "https://registry.yarnpkg.com/cycle-onionify/-/cycle-onionify-3.3.0.tgz#39cfe3275e3e454911d9e5f7fa33f9d2f5971a60"
+  dependencies:
+    xstream ">=10"
+
 d3-array@^1.2.0:
   version "1.2.0"
   resolved "https://registry.yarnpkg.com/d3-array/-/d3-array-1.2.0.tgz#147d269720e174c4057a7f42be8b0f3f2ba53108"
@@ -3022,7 +3028,7 @@ xstream@10.x:
   dependencies:
     symbol-observable "^1.0.2"
 
-xstream@^10.9.0:
+xstream@>=10, xstream@^10.9.0:
   version "10.9.0"
   resolved "https://registry.yarnpkg.com/xstream/-/xstream-10.9.0.tgz#db7934cec2da01360d43abbbc879b84524397b55"
   dependencies:
