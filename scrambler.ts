@@ -36,7 +36,7 @@ function factToFactIds(fact: Fact): string[] {
     return [fact.text];
 }
 
-async function whatToLearn(data: ScramblerData, knownFactIds: string[]): Promise<Fact> {
+function whatToLearn(data: ScramblerData, knownFactIds: string[]): Fact {
     const knownIdsSet = new Set(knownFactIds.filter(s => data.availableFactIds.has(s)));
 
     // Only look for the following parts of speech:

@@ -104,7 +104,7 @@ function makeDOMStream(sources: CycleSources): CycleSinks {
     const questionAnswerDom$ = questionAnswerResult$.map(o => o.DOM);
     const quizAllDom$ = xs.merge(questionAnswerDom$, quizDom$);
 
-    const fact$ = xs.combine(known$, factData$).map(([knownFactIds, factData]) => xs.fromPromise(tono5k.whatToLearn(factData, knownFactIds))).flatten().remember();
+    const fact$ = xs.combine(known$, factData$).map(([knownFactIds, factData]) => (tono5k.whatToLearn(factData, knownFactIds))).remember();
     const factDom$ = fact$.map(fact => fact ? newFactToDom(fact) : null);
     const learnedFact$ = sources.DOM.select('button#learned-button').events('click').compose(sampleCombine(fact$)).map(([_, fact]) => fact) as xs<WhatToLearnInfo>;
     const learnedFactDom$ = learnedFact$.map(fact => p("Great!"));

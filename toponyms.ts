@@ -40,7 +40,7 @@ function factToFactIds(word: Fact) {
     return [`${plain}-kanji`, `${plain}-reading`];
 }
 
-async function whatToLearn(data: ToponymsData, knownFactIds: string[]): Promise<Fact> {
+function whatToLearn(data: ToponymsData, knownFactIds: string[]): Fact {
     const knownIdsSet = new Set(knownFactIds.filter(s => data.availableFactIds.has(s)));
     return data.allFacts.find(fact => !all(factToFactIds(fact).map(s => knownIdsSet.has(s))));
 }
@@ -49,7 +49,7 @@ export interface HowToQuizInfo {
     fact: Fact;
     confusers?: Fact[];
 };
-async function howToQuiz(data: ToponymsData, factId: string): Promise<HowToQuizInfo> {
+function howToQuiz(data: ToponymsData, factId: string): HowToQuizInfo {
     // let allFacts: Array<Furigana[]> = await allFactsProm;
     let plain0 = stripFactIdOfSubfact(factId);
     let fact = data.allFacts.find(fact => furiganaStringToPlain(fact) === plain0);
