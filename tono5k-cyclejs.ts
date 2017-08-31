@@ -102,7 +102,7 @@ function makeDOMStream(sources: CycleSources): CycleSinks {
     const questionAnswerResult$ = questionAnswer$.map(([ans, quiz]) => checkAnswer([ans, quiz]));
     const questionAnswerSink$ = questionAnswerResult$.map(o => o.sink);
     const questionAnswerDom$ = questionAnswerResult$.map(o => o.DOM);
-    const quizAllDom$ = xs.merge(questionAnswerDom$, quizDom$);
+    const quizAllDom$ = xs.merge(questionAnswerDom$, quizDom$).startWith(null);
 
     const fact$ = xs.combine(known$, factData$).map(([knownFactIds, factData]) => (tono5k.whatToLearn(factData, knownFactIds))).remember();
     const factDom$ = fact$.map(fact => fact ? newFactToDom(fact) : null);
@@ -110,8 +110,10 @@ function makeDOMStream(sources: CycleSources): CycleSinks {
     const learnedFactDom$ = learnedFact$.map(fact => p("Great!"));
     const learnAllDom$ = xs.merge(factDom$, learnedFactDom$).startWith(null);
 
+    const vdom$ = xs.merge(quizAllDom$, learnAllDom$).filter(x => !!x).startWith(null);
+
     return {
-        DOM: xs.merge(quizAllDom$, learnAllDom$),
+        DOM: vdom$,
         learned: learnedFact$,
         quizzed: questionAnswerSink$
     };
