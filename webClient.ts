@@ -99,7 +99,7 @@ function main(sources) {
         .map(_ => Array.from(document.querySelectorAll("input.appended")).map(
             (x: HTMLInputElement): DoctypeParams => ({
                 name: x.className.match(/appended-\S+/)[0].split('-').slice(1).join('-'),
-                sources: x.value.trim().split(/\s+/)
+                sources: x.value ? x.value.trim().split(/\s+/) : []
             })));
     // doctypeParams$.addListener({ next: x => console.log('doctypes', x) });
 
