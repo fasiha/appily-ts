@@ -48,13 +48,15 @@ function factToFactIds(fact: Tono): string[] {
     return 'reading,meaning'.split(',').map(sub => `${plain}-${sub}`);
 }
 
-function whatToLearn(data: TonoData, knownFactIds: string[]): Tono {
+function whatToLearn(data: TonoData, knownFactIds: string[], request?: string): Tono {
     const knownIdsSet = new Set(knownFactIds.filter(s => data.availableFactIds.has(s)));
 
     // Only look for the following parts of speech:
     const lookFors = 'n.,v.,adj.,adv.,pron.,adn.'.split(',');
-    let fact: Tono = data.allFacts.find(fact => lookFors.findIndex(pos => fact.meaning.includes(pos)) >= 0
-        && !all(factToFactIds(fact).map(s => knownIdsSet.has(s))));
+    let fact: Tono = data.allFacts.find(fact =>
+        lookFors.findIndex(pos => fact.meaning.includes(pos)) >= 0 &&
+        !all(factToFactIds(fact).map(s => knownIdsSet.has(s))) &&
+        (request ? fact.kanjis.indexOf(request) >= 0 || fact.readings.indexOf(request) >= 0 : true));
     return fact;
 };
 

@@ -134,7 +134,7 @@ export async function doneQuizzing(db: Db, USER: string, DOCID: string, factId: 
 
 export interface FactDb {
     setup: (inputs: string[]) => Promise<any>;
-    whatToLearn: (data: any, knownFactIds: string[]) => any;
+    whatToLearn: (data: any, knownFactIds: string[], request?: any) => any;
     howToQuiz: (data: any, factId: string) => any;
     stripFactIdOfSubfact: (factId: string) => string;
     factToFactIds: (fact: any) => string[];

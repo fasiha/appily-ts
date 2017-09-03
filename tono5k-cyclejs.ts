@@ -65,8 +65,14 @@ function checkAnswer([answer, quiz]: [number | string, WhatToQuizInfo]): { DOM: 
 
 function newFactToDom(fact: any): VNode {
     if (!fact) { return null; }
-    return div([p("Hey! Learn this: " + JSON.stringify(fact)),
-    button("#learned-button", "Learned!")]);
+    return div([
+        p("Hey! Learn this: " + JSON.stringify(fact)),
+        button("#learned-button", "Learned!"),
+        p([
+            input('#suggest-text', { attrs: { type: "text", placeholder: "Looking for something special?" } }),
+            button("#suggest-button", "Search")
+        ])
+    ]);
 }
 
 function makeDOMStream(sources: CycleSources): CycleSinks {
@@ -104,7 +110,21 @@ function makeDOMStream(sources: CycleSources): CycleSinks {
     const questionAnswerDom$ = questionAnswerResult$.map(o => o.DOM);
     const quizAllDom$ = xs.merge(questionAnswerDom$, quizDom$).startWith(null);
 
-    const fact$ = xs.combine(known$, factData$).map(([knownFactIds, factData]) => (tono5k.whatToLearn(factData, knownFactIds))).remember();
+    const requested$: xs<string> = sources.DOM.select('button#suggest-button')
+        .events('click')
+        .map(_ => (document.querySelector("input#suggest-text") as HTMLInputElement).value);
+    // requested$.addListener({ next: x => console.log('requested', x) });
+    const background$: xs<[string[], TonoData]> = xs.combine(known$, factData$);
+    const backgroundRequested$: xs<[string[], TonoData, string]> = requested$.compose(sampleCombine(background$))
+        .map(([suggestion, [knownFactIds, factData]]) => [knownFactIds, factData, suggestion]) as xs<[string[], TonoData, string]>;
+    // backgroundRequested$.addListener({ next: x => console.log('backgroundRequested$', x) });
+
+    const fact$ = xs.merge(backgroundRequested$, background$).map(x => {
+        const knownFactIds = x[0]
+        const factData = x[1];
+        const request = x[2];
+        return tono5k.whatToLearn(factData, knownFactIds, request);
+    }).remember();
     const factDom$ = fact$.map(fact => fact ? newFactToDom(fact) : null);
     const learnedFact$ = sources.DOM.select('button#learned-button').events('click').compose(sampleCombine(fact$)).map(([_, fact]) => fact) as xs<WhatToLearnInfo>;
     const learnedFactDom$ = learnedFact$.map(fact => p("Great!"));
