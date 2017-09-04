@@ -49,7 +49,10 @@ function checkAnswer([answer, quiz]: [number | string, WhatToQuizInfo]): { DOM: 
     let info: any = { hoursWaited: elapsedHours(quiz.startTime) };
     const howToQuiz: HowToQuizInfo = quiz.howToQuiz;
     if (typeof answer === 'string') {
-        result = howToQuiz.fact.readings.indexOf(answer) >= 0;
+        // Typed in the exact answer OR added a `suru` OR omitted `suru`
+        result = (howToQuiz.fact.readings.indexOf(answer) >= 0 ||
+            howToQuiz.fact.readings.map(s => s.replace(/[（）]/g, '')).indexOf(answer) >= 0 ||
+            howToQuiz.fact.readings.map(s => s.split(/[（）]/)[0]).indexOf(answer) >= 0);
         info.result = result;
         info.response = answer;
     } else {
